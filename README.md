@@ -68,6 +68,16 @@
 
 A creative AI tool that unites conversation and design. Share your ideas through natural dialogue — StudioAI converts them into precise prompts and calls image/video generation models to bring your vision to life.
 
+### Why I Built This
+
+As a graduate student in design, I work with design tools on a daily basis. With the rapid rise of AI tools, I turned my attention to this space. After some exploration, I ran into a few problems:
+
+1. **AI models iterate too fast** — Different providers have different copyrights and capabilities. Just when you get familiar with one tool, you hear about another that works better. Switching back and forth costs a lot of time, energy, and money.
+2. **Poor prompt habits** — Although the concept of prompt engineering has been around for a while, most of my classmates (myself included) still tend to casually describe what they want in plain language, leading to inaccurate AI理解 and disappointing outputs.
+3. **Cost barriers** — Good design AI tools (like Lovart) are expensive, hard for an ordinary student to sustain long-term. I had to find another way.
+
+Driven by a research mindset and sheer persistence, I dug through tons of resources. One netizen's comment hit home: **"If what you want doesn't exist, build it yourself."** So I learned as I went and built this tool from scratch. It's still an early version with plenty of issues to fix — I'll keep iterating whenever I have time.
+
 ### Key Features
 
 - **Three Independent Tracks** — Chat / Image / Video, each with its own provider configuration
