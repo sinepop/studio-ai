@@ -1,0 +1,3189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Studio AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300&family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.2/babel.min.js"></script>
+<style>
+:root {
+  --bg-primary: #08080D;
+  --bg-elevated: #0E0E14;
+  --bg-surface: #131319;
+  --bg-hover: #18181F;
+  --bg-input: #0C0C11;
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-default: rgba(255,255,255,0.07);
+  --border-accent: rgba(232,168,73,0.25);
+  --text-primary: #F0EDE8;
+  --text-secondary: #9B978F;
+  --text-muted: #4A4840;
+  --text-ghost: #2A2826;
+  --accent: #E8A849;
+  --accent-soft: rgba(232,168,73,0.1);
+  --accent-glow: rgba(232,168,73,0.06);
+  --danger: #C4554A;
+  --danger-soft: rgba(196,85,74,0.08);
+  --success: #5DAE8B;
+  --success-soft: rgba(93,174,139,0.08);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body, #root { height:100%; }
+body {
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes dot { 0%,80%,100%{ opacity:.12; transform:scale(.6); } 40%{ opacity:1; transform:scale(1); } }
+@keyframes shimmer { 0%{ background-position:-200% 0; } 100%{ background-position:200% 0; } }
+@keyframes pulse { 0%,100%{ opacity:.5; } 50%{ opacity:1; } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+::-webkit-scrollbar { width:3px; height:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:4px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.1); }
+textarea, input, select { font-family: var(--font-body); }
+textarea::placeholder, input::placeholder { color: var(--text-ghost); }
+.sai-inp { width:100%; background:var(--bg-primary); font-size:11px; padding:7px 10px; color:var(--text-primary); outline:none; box-sizing:border-box; font-family:var(--font-mono); border-radius:6px; border:1px solid var(--border-default); transition:border-color .2s; }
+.sai-inp:focus { border-color:var(--border-accent) !important; }
+.sai-inp-empty { border:1px solid rgba(232,168,73,0.35) !important; }
+.sai-inp-empty:focus { border-color:var(--border-accent) !important; }
+.sai-input-wrap { border:1px solid var(--border-default); transition:border-color .2s; }
+.sai-input-wrap:focus-within { border-color:var(--border-accent); }
+button { cursor:pointer; font-family: var(--font-body); }
+select { appearance:none; cursor:pointer; }
+
+/* Boot screen */
+#boot {
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  background: var(--bg-primary); z-index:999; gap:16px;
+}
+#boot-title {
+  font-family: var(--font-display); font-size:26px; font-weight:400;
+  color: var(--text-primary); letter-spacing:-0.02em; font-style:italic;
+}
+#boot-sub {
+  font-family: var(--font-body); font-size:11px; color: var(--text-muted);
+  letter-spacing:0.06em;
+}
+
+/* App entrance */
+.app-enter { animation: fadeIn .6s var(--ease-out) forwards; }
+.msg-enter { animation: fadeUp .35s var(--ease-out) forwards; }
+.card-enter { animation: fadeUp .4s var(--ease-out) forwards; }
+.slide-in { animation: slideIn .3s var(--ease-out) forwards; }
+.spin-anim { animation: spin .8s linear infinite; }
+
+/* Noise overlay */
+body::after {
+  content:''; position:fixed; inset:0; z-index:9999; pointer-events:none;
+  opacity:0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+</style>
+</head>
+<body>
+<div id="boot">
+  <div id="boot-title">Studio AI</div>
+  <div id="boot-sub">正在加载，首次约需 3-5 秒…</div>
+</div>
+<div id="root" style="display:none;height:100%"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ═══════════════════════════════════════════════════════════════
+//  Icon System — refined, hand-crafted SVG icons
+// ═══════════════════════════════════════════════════════════════
+const IC = {
+  send:    "M5 12h14|M12.5 5.5L20 12l-7.5 6.5",
+  gear:    "M12.2 2a2.2 2.2 0 012.2 2.2v.4a2.4 2.4 0 001.3.9l.4-.1a2.2 2.2 0 012.8 2.8l-.1.4a2.4 2.4 0 00.9 1.3v.4a2.2 2.2 0 01-2.2 2.2h-.4a2.4 2.4 0 00-1.3.9l-.1.4a2.2 2.2 0 01-2.8 2.8l-.4-.1a2.4 2.4 0 00-1.3.9v.4a2.2 2.2 0 01-2.2 2.2h-.4A2.2 2.2 0 018 22.4v-.4a2.4 2.4 0 00-.9-1.3l-.4.1a2.2 2.2 0 01-2.8-2.8l.1-.4A2.4 2.4 0 003.1 17v-.4A2.2 2.2 0 01.9 14.4h-.4",
+  star:    "M12 2l2.8 6.4H22l-5.2 4.2 2 6.6L12 15.2 5.2 19.2l2-6.6L2 8.4h7.2z",
+  close:   "M16 8L8 16|M8 8l8 8",
+  refresh: "M21 2v6h-6|M3 22v-6h6|M3.4 9.2a8 8 0 0114.2-3.4L21 10|M20.6 14.8A8 8 0 013.4 18.2L3 14",
+  download:"M12 3v12M7 10l5 5 5-5|M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2",
+  wand:    "M15.5 3.5l5 5L8 21H3v-5L15.5 3.5zM10 12l6 6",
+  image:   "M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5z|M3 15l4.6-4.6a1 1 0 011.4 0L13 14.4l2.6-2.6a1 1 0 011.4 0L21 15|M9 9.5a1 1 0 100-2 1 1 0 000 2z",
+  chevDown:"M6 9l6 6 6-6",
+  chevUp:  "M6 15l6-6 6 6",
+  trash:   "M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3",
+  eye:     "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z|M12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z",
+  zap:     "M13 2L4 14h7l-1 8 9-12h-7l1-8z",
+  film:    "M3 3h18v18H3z|M8 3v18M16 3v18M3 10h18M3 15h18",
+  rotate:  "M3 12a9 9 0 0115.4-6.4L21 8M21 2v5h-5M21 12a9 9 0 01-15.4 6.4L3 16M3 22v-5h5",
+  layers:  "M12 3L2 8l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5",
+  alert:   "M10.3 3.5L1.6 18a1.5 1.5 0 001.3 2.5h20.2a1.5 1.5 0 001.3-2.5L13.7 3.5a1.5 1.5 0 00-2.6 0zM12 10v4M12 18h.01",
+  check:   "M20 6L9 17l-5-5",
+  sparkle: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83",
+  grid:    "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z",
+  link:    "M10 14a3.5 3.5 0 005 0l3-3a3.5 3.5 0 00-5-5l-1 1M14 10a3.5 3.5 0 00-5 0l-3 3a3.5 3.5 0 005 5l1-1",
+  mouse:   "M9 3h6a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2zM12 7v4",
+};
+
+const Ic = ({ n, size=15, color="currentColor", sw=1.5, className="" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none"
+    stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"
+    className={className}
+    style={{flexShrink:0, display:"inline-block", verticalAlign:"middle"}}>
+    {(IC[n]||"").split("|").map((d,i) => <path key={i} d={d.trim()}/>)}
+  </svg>
+);
+
+// ═══════════════════════════════════════════════════════════════
+//  Constants & Config
+// ═══════════════════════════════════════════════════════════════
+const HISTORY_LIMIT = 18;
+const MAX_RETRY = 2;
+
+const STYLE_PRESETS = [
+  { id:"flat",      label:"扁平插画", emoji:"🎨", suffix:", flat illustration, clean design, vibrant colors, vector art style" },
+  { id:"3d",        label:"3D 渲染",  emoji:"💎", suffix:", 3D render, octane render, cinematic lighting, hyperrealistic materials, depth of field" },
+  { id:"photo",     label:"写实摄影", emoji:"📷", suffix:", professional photography, 85mm lens, shallow depth of field, natural lighting, film grain" },
+  { id:"watercolor",label:"水彩画",   emoji:"🖌️", suffix:", watercolor painting, soft washes, delicate brushstrokes, artistic, textured paper" },
+  { id:"anime",     label:"动漫风",   emoji:"✨", suffix:", anime style, studio ghibli inspired, cel shading, vivid colors, detailed background" },
+  { id:"pixel",     label:"像素艺术", emoji:"👾", suffix:", pixel art, 16-bit style, retro gaming, limited palette, crisp pixels" },
+  { id:"oil",       label:"油画",     emoji:"🖼️", suffix:", oil painting, impasto technique, rich textures, classical composition, gallery quality" },
+  { id:"minimal",   label:"极简主义", emoji:"◻️", suffix:", minimalist design, clean lines, negative space, monochromatic, modern aesthetic" },
+  { id:"cyberpunk", label:"赛博朋克", emoji:"🌆", suffix:", cyberpunk aesthetic, neon lights, rainy streets, futuristic, dark atmosphere" },
+  { id:"paper",     label:"剪纸",     emoji:"✂️", suffix:", paper cut art, layered paper, shadow box, craft style, dimensional, tactile" },
+];
+
+const ASPECT_RATIOS = [
+  { id:"1:1",   label:"1:1",   w:1024, h:1024 },
+  { id:"4:3",   label:"4:3",   w:1024, h:768  },
+  { id:"3:4",   label:"3:4",   w:768,  h:1024 },
+  { id:"16:9",  label:"16:9",  w:1280, h:720  },
+  { id:"9:16",  label:"9:16",  w:720,  h:1280 },
+  { id:"3:2",   label:"3:2",   w:1024, h:682  },
+];
+
+const QUICK_IDEAS = [
+  { text:"一只穿西装的柴犬在办公室工作", icon:"🐶" },
+  { text:"未来城市的黄昏天际线", icon:"🌃" },
+  { text:"一杯冒热气的拿铁咖啡特写", icon:"☕" },
+  { text:"梦幻森林中的发光蘑菇", icon:"🍄" },
+  { text:"日式庭院中的锦鲤池塘", icon:"🐟" },
+  { text:"赛博朋克风格的霓虹招牌", icon:"🔮" },
+];
+
+const CHAT_PROVIDERS = [
+  { id:"claude",   name:"Claude",              defaultUrl:"https://api.anthropic.com",                    format:"anthropic", defaultModel:"claude-sonnet-4-6", protocol:"anthropic_messages" },
+  { id:"openai",   name:"OpenAI GPT",          defaultUrl:"https://api.openai.com",                        format:"openai",    defaultModel:"gpt-5.1",          protocol:"openai_chat" },
+  { id:"gemini",   name:"Gemini",              defaultUrl:"https://generativelanguage.googleapis.com",      format:"gemini",    defaultModel:"gemini-2.5-pro",   protocol:"gemini_generate_content" },
+  { id:"deepseek", name:"DeepSeek",            defaultUrl:"https://api.deepseek.com",                      format:"openai",    defaultModel:"deepseek-v4-pro",  protocol:"deepseek_chat" },
+  { id:"qwen",     name:"Qwen / 通义千问",       defaultUrl:"https://dashscope.aliyuncs.com/compatible-mode",format:"openai",    defaultModel:"qwen-plus-latest", protocol:"openai_chat" },
+  { id:"kimi",     name:"Kimi / Moonshot",     defaultUrl:"https://api.moonshot.cn",                       format:"openai",    defaultModel:"kimi-k2-0711-preview", protocol:"openai_chat" },
+  { id:"doubao",   name:"Doubao / 火山方舟",     defaultUrl:"https://ark.cn-beijing.volces.com/api/v3",      format:"openai",    defaultModel:"doubao-seed-1-6-250615", protocol:"openai_chat" },
+  { id:"zhipu",    name:"GLM / 智谱",           defaultUrl:"https://open.bigmodel.cn/api/paas/v4",          format:"openai",    defaultModel:"glm-4.6",          protocol:"openai_chat" },
+  { id:"openrouter", name:"OpenRouter",        defaultUrl:"https://openrouter.ai/api",                     format:"openai",    defaultModel:"openai/gpt-5.1",   protocol:"openai_chat" },
+  { id:"custom_chat", name:"自定义文本 API",     defaultUrl:"",                                             format:"openai",    defaultModel:"",                 protocol:"openai_chat" },
+];
+
+const IMG_PROVIDERS = [
+  { id:"dalle",       name:"OpenAI Image",          defaultUrl:"https://api.openai.com",                        defaultModel:"gpt-image-2", protocol:"openai_image" },
+  { id:"gemini_img",  name:"Nano Banana / Gemini Image",  defaultUrl:"https://generativelanguage.googleapis.com",      defaultModel:"gemini-2.5-flash-image", protocol:"gemini_image" },
+  { id:"jimeng_img",  name:"即梦 / Seedream",        defaultUrl:"https://ark.cn-beijing.volces.com/api/v3",      defaultModel:"doubao-seedream-4-0-250828", protocol:"ark_image" },
+  { id:"custom_img",  name:"自定义图片 API",         defaultUrl:"",                                             defaultModel:"", protocol:"openai_image" },
+];
+
+const VID_PROVIDERS = [
+  { id:"jimeng_vid",  name:"即梦2.0 / Seedance",     defaultUrl:"https://ark.cn-beijing.volces.com/api/v3",      defaultModel:"doubao-seedance-2-0-pro-250528", protocol:"ark_video_task" },
+  { id:"happyhorse",  name:"HappyHorse 1.0",        defaultUrl:"https://happyhorse.app",                        defaultModel:"happyhorse-1.0/video", protocol:"happyhorse_task" },
+  { id:"runway",      name:"Runway ML",             defaultUrl:"https://api.dev.runwayml.com",                  defaultModel:"gen4_turbo", protocol:"runway_task" },
+  { id:"nanobanana_vid", name:"Nano Banana 视频中转", defaultUrl:"",                                             defaultModel:"", protocol:"custom_video" },
+  { id:"custom_vid",  name:"自定义视频 API",         defaultUrl:"",                                             defaultModel:"", protocol:"custom_video" },
+];
+
+const getProviderById = (track, id) => {
+  const arr = track === "chat" ? CHAT_PROVIDERS : track === "img" ? IMG_PROVIDERS : VID_PROVIDERS;
+  return arr.find(p=>p.id===id) || arr[0];
+};
+
+const getProviderDefaultModel = (track, id) => getProviderById(track,id)?.defaultModel || "";
+
+const fetchModelsFromProvider = async (apiKey, baseUrl, format="openai", providerId="") => {
+  if (!baseUrl) return [];
+  const base = baseUrl.replace(/\/$/, "");
+  try {
+    if (format === "gemini" || providerId === "gemini" || providerId === "gemini_img") {
+      if (!apiKey) return [];
+      const r = await apiFetch(`${base}/v1beta/models?key=${encodeURIComponent(apiKey.trim())}`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) return [];
+      const d = await r.json();
+      const list = d.models || [];
+      return list.map(m => ({ id:String(m.name||"").replace(/^models\//,""), owned_by:"google" }))
+                 .filter(m => m.id)
+                 .sort((a,b)=>a.id.localeCompare(b.id));
+    }
+
+    const headers = {};
+    if (format === "anthropic" || providerId === "claude") {
+      if (!apiKey) return [];
+      headers["x-api-key"] = apiKey.trim();
+      headers["anthropic-version"] = "2023-06-01";
+      headers["anthropic-dangerous-direct-browser-access"] = "true";
+    } else {
+      if (!apiKey) return [];
+      headers["Authorization"] = `Bearer ${apiKey.trim()}`;
+    }
+    const r = await apiFetch(getOpenAIModelsURL(base), {
+      headers,
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    const list = d.data || d.models || d;
+    if (!Array.isArray(list)) return [];
+    return list.map(m => ({ id:m.id || m.name || m, owned_by:m.owned_by || m.display_name || "" }))
+               .filter(m => m.id)
+               .sort((a,b) => String(a.id).localeCompare(String(b.id)));
+  } catch { return []; }
+};
+
+const loadCfg = () => {
+  if (window.claudeConfig) return window.claudeConfig;
+  try { return JSON.parse(localStorage.getItem("sai_cfg")||"{}"); } catch { return {}; }
+};
+const saveCfg = c => { try { localStorage.setItem("sai_cfg", JSON.stringify(c)); } catch{} };
+
+// ─────────────────────────────────────────────────────────────
+// API helpers: direct browser call + optional local proxy fallback
+// Many providers do NOT allow browser-direct CORS. For self-use,
+// set apiProxyBase to a local proxy such as http://127.0.0.1:8787.
+// ─────────────────────────────────────────────────────────────
+const nativeFetch = window.fetch.bind(window);
+
+const getStoredCfg = () => {
+  try { return JSON.parse(localStorage.getItem("sai_cfg") || "{}"); } catch { return {}; }
+};
+
+const getApiProxyBase = () => String(getStoredCfg().apiProxyBase || "").replace(/\/$/, "");
+
+const shouldProxyURL = (url) => {
+  const cfg = getStoredCfg();
+  const proxy = String(cfg.apiProxyBase || "").replace(/\/$/, "");
+  if (!proxy) return false;
+  const u = String(url || "");
+  if (!/^https?:\/\//i.test(u)) return false;
+  if (u.startsWith(proxy)) return false;
+  if (cfg.proxyAll) return true;
+  if (u.includes("image.pollinations.ai")) return false;
+  return true;
+};
+
+const apiFetch = async (url, options={}) => {
+  if (!shouldProxyURL(url)) return nativeFetch(url, options);
+  const proxy = getApiProxyBase();
+  const body = options.body;
+  return nativeFetch(`${proxy}/proxy`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      url:String(url),
+      method:options.method || "GET",
+      headers:options.headers || {},
+      body:typeof body === "string" ? body : body ? JSON.stringify(body) : undefined,
+    }),
+    signal:options.signal,
+  });
+};
+
+const trimBase = url => String(url || "").replace(/\/$/, "");
+
+const getOpenAIChatURL = base => {
+  const b = trimBase(base);
+  if (/\/v1$/i.test(b)) return `${b}/chat/completions`;
+  if (/\/(api\/v3|api\/paas\/v4)$/i.test(b)) return `${b}/chat/completions`;
+  return `${b}/v1/chat/completions`;
+};
+
+const getOpenAIModelsURL = base => {
+  const b = trimBase(base);
+  if (/\/v1$/i.test(b)) return `${b}/models`;
+  if (/\/(api\/v3|api\/paas\/v4)$/i.test(b)) return `${b}/models`;
+  return `${b}/v1/models`;
+};
+
+const getOpenAIImageURL = base => {
+  const b = trimBase(base);
+  if (/\/v1$/i.test(b)) return `${b}/images/generations`;
+  if (/\/api\/v3$/i.test(b)) return `${b}/images/generations`;
+  return `${b}/v1/images/generations`;
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+//  System Prompt Builder
+// ═══════════════════════════════════════════════════════════════
+const buildSys = (canvas, sel, stylePreset, aspectRatio) => {
+  const canvasCtx = canvas.length === 0 ? "（画布为空）"
+    : canvas.slice(0,12).map(c => `  [ID:${c.id}] "${c.label}" | 类型:${c.type||"image"} | ${c.prompt?.slice(0,120)}`).join("\n");
+  const selCtx = sel
+    ? `
+## 当前选中资产
+ID:${sel.id} | 类型:${sel.type||"image"} | 标签:"${sel.label}"
+完整Prompt:"${sel.prompt}"
+Negative:"${sel.negative||""}"
+→ 若用户说修改/调整/换风格，基于此资产继续改；若用户说动起来/做成视频，生成 image_to_video 任务并填 source_image_id。`
+    : "";
+  const styleCtx = stylePreset
+    ? `
+## 当前风格预设
+${STYLE_PRESETS.find(s=>s.id===stylePreset)?.label||stylePreset}风格，prompt末尾会自动追加该风格关键词`
+    : "";
+  const ratioCtx = aspectRatio
+    ? `
+## 当前画幅比例
+${aspectRatio}`
+    : "";
+  return `你是 Studio AI，专业 AI 创意设计工作流 Agent。你的职责不是直接生成图片/视频，而是理解用户中文创意，并为当前配置的图片 API 或视频 API 产出可执行任务。
+
+## 当前画布（${canvas.length}个资产）
+${canvasCtx}
+${selCtx}
+${styleCtx}
+${ratioCtx}
+
+## 响应格式（只输出纯JSON，不要markdown代码块）
+{"understanding":"一句话理解用户意图","plan":["步骤1","步骤2"],"intent":"chat|generate_image|modify_image|generate_video|image_to_video","tasks":[{"id":"t1","type":"image|video","label":"中文短标签","prompt":"高质量英文prompt，80词以上，含主体/场景/镜头/构图/光线/色彩/材质/情绪/细节；视频还要包含运动、镜头、开头和结尾状态","negative_prompt":"low quality, blurry, deformed, watermark, text","source_image_id":null,"duration":5,"ratio":"${aspectRatio||"1:1"}"}],"reply":"中文友好回复"}
+
+## 规则
+1. 仅聊天/解释/提建议时：intent=chat，tasks=[]。
+2. 用户要求生图/画/出图/做设计图时：intent=generate_image，tasks.type=image。
+3. 用户要求生视频/动画/镜头运动/短片时：intent=generate_video，tasks.type=video。
+4. 用户选中资产并说修改/调整/换背景/换风格：intent=modify_image，source_image_id填当前选中资产ID；prompt必须继承原图主体和未提及元素。
+5. 用户选中图片并说动起来/做成视频/镜头推进/运镜：intent=image_to_video，tasks.type=video，source_image_id填当前选中图片ID。
+6. prompt必须是英文且具体，不用泛泛的beautiful，要写清楚镜头、光线、材质、色彩、空间关系。
+7. 可生成1-3个任务；若用户未要求多版本，默认1个。
+8. reply必须中文，不要声称已经生成完成，只说明你的创作计划和正在执行。`;
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  Image Generation
+// ═══════════════════════════════════════════════════════════════
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const cleanBase = url => (url || "").replace(/\/$/, "");
+
+const EXACT_IMAGE_SIZE_MAP = {
+  "1:1":"1024x1024",
+  "4:3":"1536x1152",
+  "3:4":"1152x1536",
+  "16:9":"1536x864",
+  "9:16":"864x1536",
+  "3:2":"1536x1024",
+};
+
+const OPENAI_LEGACY_SIZE_MAP = {
+  "1:1":"1024x1024",
+  "4:3":"1536x1024",
+  "3:4":"1024x1536",
+  "16:9":"1536x1024",
+  "9:16":"1024x1536",
+  "3:2":"1536x1024",
+};
+
+const POLLINATIONS_DIM_MAP = {
+  "1:1":  {w:1024,h:1024},
+  "4:3":  {w:1024,h:768},
+  "3:4":  {w:768,h:1024},
+  "16:9": {w:1280,h:720},
+  "9:16": {w:720,h:1280},
+  "3:2":  {w:1024,h:682},
+};
+
+const RUNWAY_RATIO_MAP = {
+  "1:1":"960:960",
+  "16:9":"1280:720",
+  "9:16":"720:1280",
+  "4:3":"1104:832",
+  "3:4":"832:1104",
+  "3:2":"1152:768",
+};
+
+const HAPPYHORSE_RATIO_MAP = {
+  "1:1":"1:1",
+  "16:9":"16:9",
+  "9:16":"9:16",
+  "4:3":"16:9",
+  "3:4":"9:16",
+  "3:2":"16:9",
+};
+
+const getExactImageSize = ratio => EXACT_IMAGE_SIZE_MAP[ratio] || EXACT_IMAGE_SIZE_MAP["1:1"];
+const getPollinationsDims = ratio => POLLINATIONS_DIM_MAP[ratio] || POLLINATIONS_DIM_MAP["1:1"];
+const getOpenAIImageSize = (model, ratio) => {
+  const m = String(model || "").toLowerCase();
+  // gpt-image-2 supports arbitrary WIDTHxHEIGHT within documented limits; use true ratios.
+  if (m.includes("gpt-image-2")) return getExactImageSize(ratio);
+  // gpt-image-1 / DALL·E have narrower official size support; use nearest legal size.
+  return OPENAI_LEGACY_SIZE_MAP[ratio] || OPENAI_LEGACY_SIZE_MAP["1:1"];
+};
+const getAspectInstruction = ratio => `The final composition must be designed for a strict ${ratio} aspect ratio.`;
+
+const genPollinations = (prompt, seed, w=1024, h=1024) => {
+  const q = encodeURIComponent(String(prompt || "").slice(0,900));
+  return `https://image.pollinations.ai/prompt/${q}?seed=${seed}&width=${w}&height=${h}&nologo=true&enhance=true`;
+};
+
+const shouldSendNegativePrompt = (providerId, baseUrl) => {
+  // Google Gemini / OpenAI / most OpenAI-compatible image APIs reject `negative_prompt`.
+  // Keep it only for SD/Stability-like middlewares that explicitly accept it.
+  const b = String(baseUrl || "").toLowerCase();
+  return providerId === "sd" || b.includes("stable-diffusion") || b.includes("stability");
+};
+
+const findGeminiInlineImage = obj => {
+  const parts = obj?.candidates?.[0]?.content?.parts || obj?.parts || [];
+  for (const p of parts) {
+    const inline = p.inlineData || p.inline_data;
+    if (inline?.data) {
+      const mime = inline.mimeType || inline.mime_type || "image/png";
+      return `data:${mime};base64,${inline.data}`;
+    }
+  }
+  return "";
+};
+
+const GEMINI_IMAGE_RATIO_MAP = {
+  "1:1":"1:1",
+  "4:3":"4:3",
+  "3:4":"3:4",
+  "16:9":"16:9",
+  "9:16":"9:16",
+  "3:2":"3:2",
+};
+
+const buildGeminiImageBody = (prompt, ratio, mode="full") => {
+  const body = {
+    contents:[{
+      parts:[{
+        text:`${getAspectInstruction(ratio || "1:1")}\n\n${prompt}`
+      }]
+    }]
+  };
+  if (mode === "full") {
+    body.generationConfig = {
+      responseModalities:["TEXT","IMAGE"],
+      responseFormat:{
+        image:{
+          aspectRatio:GEMINI_IMAGE_RATIO_MAP[ratio || "1:1"] || "1:1"
+        }
+      }
+    };
+  } else if (mode === "modalities") {
+    body.generationConfig = { responseModalities:["TEXT","IMAGE"] };
+  } else if (mode === "format") {
+    body.generationConfig = {
+      responseFormat:{
+        image:{
+          aspectRatio:GEMINI_IMAGE_RATIO_MAP[ratio || "1:1"] || "1:1"
+        }
+      }
+    };
+  }
+  return body;
+};
+
+const getGeminiImageEndpoint = (base, model) => {
+  const clean = trimBase(base || "https://generativelanguage.googleapis.com");
+  const m = model || "gemini-2.5-flash-image";
+  // Google docs currently show /v1/models/{model}:generateContent for image models.
+  // If a user uses a v1beta-only model/gateway, retry logic below switches to v1beta.
+  return `${clean}/v1/models/${encodeURIComponent(m)}:generateContent`;
+};
+
+const genGeminiImage = async (prompt, key, base, model, ratio="1:1") => {
+  if (!key) throw new Error("未配置 Gemini API Key");
+  const m = model || "gemini-2.5-flash-image";
+  const clean = trimBase(base || "https://generativelanguage.googleapis.com");
+  const endpoints = [
+    `${clean}/v1/models/${encodeURIComponent(m)}:generateContent`,
+    `${clean}/v1beta/models/${encodeURIComponent(m)}:generateContent`,
+  ];
+  const modes = ["full", "modalities", "format", "plain"];
+  let lastError = null;
+
+  for (const endpoint of endpoints) {
+    for (const mode of modes) {
+      const r = await apiFetch(endpoint, {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-goog-api-key":key.trim()
+        },
+        body:JSON.stringify(buildGeminiImageBody(prompt, ratio, mode))
+      });
+      const d = await r.json().catch(()=>({}));
+
+      if (r.ok) {
+        const parts = d.candidates?.[0]?.content?.parts || [];
+        for (const p of parts) {
+          const inline = p.inlineData || p.inline_data;
+          if (inline?.data) {
+            const mime = inline.mimeType || inline.mime_type || "image/png";
+            return `data:${mime};base64,${inline.data}`;
+          }
+        }
+        const textPart = parts.map(p=>p.text||"").filter(Boolean).join(" ").slice(0,260);
+        if (textPart) lastError = `Gemini 返回了文字但没有返回图片：${textPart}`;
+        else lastError = `Gemini 未返回图片，finishReason=${d.candidates?.[0]?.finishReason || "unknown"}`;
+        continue;
+      }
+
+      const msg = d.error?.message || d.message || JSON.stringify(d).slice(0,260) || "未知";
+      lastError = `${r.status}: ${msg}`;
+
+      // If mode failed because of schema fields, try the next simpler mode.
+      if (/responseModalities|responseFormat|aspectRatio|generationConfig|Unknown name|Invalid JSON payload/i.test(msg)) {
+        continue;
+      }
+      // If endpoint is not found, try next endpoint version.
+      if (r.status === 404) break;
+    }
+  }
+
+  throw new Error(`Gemini 图片生成失败：${lastError || "未知错误"}。请确认模型支持图片输出，如 gemini-2.5-flash-image、gemini-3.1-flash-image 或 gemini-3-pro-image。`);
+};
+
+const genOpenAIImage = async ({ prompt, negative, key, base, model, ratio, providerId }) => {
+  if (!key) throw new Error("未配置图片 API Key");
+  if (!base) throw new Error("未配置图片 Base URL");
+  const m = model || "gpt-image-2";
+  const isDalle = /^dall-e/i.test(m);
+  const body = {
+    model:m,
+    prompt:`${getAspectInstruction(ratio || "1:1")}\n\n${prompt}`,
+    n:1,
+    size:getOpenAIImageSize(m, ratio || "1:1"),
+  };
+
+  if (isDalle) body.response_format = "url";
+
+  // 修复 Gemini / Google 兼容接口 400：Unknown name "negative_prompt"。
+  // 默认不传 negative_prompt；只有 SD/Stability 类中转才传。
+  if (negative && shouldSendNegativePrompt(providerId, base)) {
+    body.negative_prompt = negative;
+  }
+
+  const r = await apiFetch(getOpenAIImageURL(base), {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${key.trim()}`, "Content-Type":"application/json"},
+    body:JSON.stringify(body),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(`图像 API 错误 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+  const it = d.data?.[0] || d.images?.[0];
+  if (!it) throw new Error("图像 API 返回格式异常：没有 data[0]");
+  if (typeof it === "string") return it;
+  if (it.url) return it.url;
+  if (it.b64_json) return `data:image/png;base64,${it.b64_json}`;
+  if (it.image_url) return it.image_url;
+  throw new Error("图像 API 未返回 url / b64_json");
+};
+
+const pollRunwayTask = async ({ base, key, taskId, onProgress }) => {
+  for (let i=0; i<80; i++) {
+    await sleep(i < 2 ? 3000 : 5000);
+    const r = await apiFetch(`${cleanBase(base)}/v1/tasks/${taskId}`, {
+      method:"GET",
+      headers:{
+        "Authorization":`Bearer ${key.trim()}`,
+        "X-Runway-Version":"2024-11-06",
+      },
+    });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(`Runway 查询任务失败 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+    onProgress?.(Math.min(95, 12 + i));
+    const st = String(d.status || "").toUpperCase();
+    if (st === "SUCCEEDED" || st === "COMPLETED" || st === "SUCCESS") {
+      const output = d.output || d.outputs || d.result;
+      const url = Array.isArray(output) ? output[0] : (output?.url || output?.video_url || output);
+      if (!url) throw new Error("视频任务成功，但没有返回视频 URL");
+      return { videoUrl:url, taskId, task:d };
+    }
+    if (["FAILED", "CANCELED", "CANCELLED"].includes(st)) {
+      throw new Error(d.failure || d.error?.message || d.message || `视频任务失败：${st}`);
+    }
+  }
+  throw new Error("视频任务超时：可稍后重试或检查服务商任务后台");
+};
+
+const genArkImage = async ({ prompt, negative, key, base, model, ratio }) => {
+  if (!key) throw new Error("未配置即梦/Seedream API Key");
+  const body = {
+    model:model || "doubao-seedream-4-0-250828",
+    prompt:`${getAspectInstruction(ratio || "1:1")}\n\n${prompt}`,
+    size:getExactImageSize(ratio || "1:1"),
+    response_format:"url",
+  };
+  if (negative) body.negative_prompt = negative;
+
+  const r = await apiFetch(`${cleanBase(base || "https://ark.cn-beijing.volces.com/api/v3")}/images/generations`, {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${key.trim()}`, "Content-Type":"application/json"},
+    body:JSON.stringify(body),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(`即梦/Seedream 图片 API 错误 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+  const it = d.data?.[0] || d.images?.[0];
+  const url = it?.url || it?.image_url || (typeof it === "string" ? it : "");
+  const b64 = it?.b64_json;
+  if (url) return url;
+  if (b64) return `data:image/png;base64,${b64}`;
+  throw new Error("即梦/Seedream 图片 API 未返回图片 URL");
+};
+
+const pollHappyHorseTask = async ({ base, key, taskId, onProgress }) => {
+  let delay = 8000;
+  for (let i=0; i<80; i++) {
+    await sleep(delay);
+    delay = Math.min(delay + 2000, 20000);
+    const r = await apiFetch(`${cleanBase(base || "https://happyhorse.app")}/api/status?task_id=${encodeURIComponent(taskId)}`, {
+      headers:{ "Authorization":`Bearer ${key.trim()}` },
+    });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(`HappyHorse 查询任务失败 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+    onProgress?.(Math.min(95, 10 + i));
+    const task = d.data || d;
+    const st = String(task.status || "").toUpperCase();
+    if (st === "SUCCESS" || st === "SUCCEEDED" || st === "COMPLETED") {
+      const url = task.response?.resultUrls?.[0] || task.response?.result_urls?.[0] || task.resultUrls?.[0] || task.url || task.video_url;
+      if (!url) throw new Error("HappyHorse 任务成功，但没有返回视频 URL");
+      return { videoUrl:url, taskId, task };
+    }
+    if (st === "FAILED" || st === "FAILURE" || st === "CANCELED") {
+      throw new Error(task.error_message || task.error?.message || task.message || `HappyHorse 任务失败：${st}`);
+    }
+  }
+  throw new Error("HappyHorse 视频任务超时");
+};
+
+const genHappyHorseVideo = async ({ prompt, sourceImageUrl, key, base, model, ratio, duration }, onProgress) => {
+  if (!key) throw new Error("未配置 HappyHorse API Key");
+  const body = {
+    model:model || "happyhorse-1.0/video",
+    prompt,
+    mode:"pro",
+    duration:Math.max(3, Math.min(15, Number(duration) || 5)),
+    aspect_ratio:HAPPYHORSE_RATIO_MAP[ratio || "16:9"] || "16:9",
+    sound:true,
+  };
+  if (sourceImageUrl) body.image_urls = [sourceImageUrl];
+
+  const r = await apiFetch(`${cleanBase(base || "https://happyhorse.app")}/api/generate`, {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${key.trim()}`, "Content-Type":"application/json"},
+    body:JSON.stringify(body),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(`HappyHorse 创建任务失败 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+  const taskId = d.data?.task_id || d.task_id || d.id;
+  if (!taskId) throw new Error("HappyHorse 未返回 task_id");
+  onProgress?.(8);
+  return await pollHappyHorseTask({ base, key, taskId, onProgress });
+};
+
+const pollArkVideoTask = async ({ base, key, taskId, onProgress }) => {
+  for (let i=0; i<80; i++) {
+    await sleep(i < 2 ? 6000 : 10000);
+    const url = `${cleanBase(base || "https://ark.cn-beijing.volces.com/api/v3")}/contents/generations/tasks/${encodeURIComponent(taskId)}`;
+    const r = await apiFetch(url, {
+      headers:{"Authorization":`Bearer ${key.trim()}`},
+    });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(`即梦/Seedance 查询任务失败 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+    onProgress?.(Math.min(95, 10 + i));
+    const data = d.data || d;
+    const st = String(data.status || data.task_status || "").toUpperCase();
+    const stNum = Number(data.status || data.task_status);
+    if (["SUCCEEDED","SUCCESS","COMPLETED","DONE"].includes(st) || stNum === 99 || stNum === 90) {
+      const content = data.content || data.result || data.output || data.outputs;
+      const url = data.video_url || data.url || content?.video_url || content?.url
+        || data.videos?.[0]?.url
+        || (Array.isArray(content) ? (content[0]?.video_url || content[0]?.url || content[0]) : "");
+      if (!url) throw new Error("即梦/Seedance 任务成功，但没有返回视频 URL");
+      return { videoUrl:url, taskId, task:data };
+    }
+    if (["FAILED","FAIL","ERROR","CANCELED","CANCELLED"].includes(st) || stNum === 30) {
+      throw new Error(data.error?.message || data.message || `即梦/Seedance 任务失败：${st}`);
+    }
+  }
+  throw new Error("即梦/Seedance 视频任务超时");
+};
+
+const genArkVideo = async ({ prompt, sourceImageUrl, key, base, model, ratio, duration }, onProgress) => {
+  if (!key) throw new Error("未配置即梦/Seedance API Key");
+  const endpoint = `${cleanBase(base || "https://ark.cn-beijing.volces.com/api/v3")}/contents/generations/tasks`;
+  const content = [{ type:"text", text:prompt }];
+  if (sourceImageUrl) content.push({ type:"image_url", image_url:{ url:sourceImageUrl } });
+
+  const body = {
+    model:model || "doubao-seedance-2-0-pro-250528",
+    content,
+    parameters:{
+      durationSeconds:Number(duration) || 5,
+      aspectRatio:ratio || "16:9",
+      resolution:"720p",
+    }
+  };
+
+  const r = await apiFetch(endpoint, {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${key.trim()}`, "Content-Type":"application/json"},
+    body:JSON.stringify(body),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) {
+    const lastErr = `${r.status}: ${d.error?.message || d.message || JSON.stringify(d).slice(0,160) || "未知"}`;
+    throw new Error(`即梦/Seedance 创建任务失败：${lastErr}`);
+  }
+  const taskId = d.data?.id || d.data?.task_id || d.id || d.task_id;
+  if (!taskId) throw new Error("即梦/Seedance 未返回任务 ID。");
+  onProgress?.(8);
+  return await pollArkVideoTask({ base, key, taskId, onProgress });
+};
+
+const genRunwayVideo = async ({ prompt, sourceImageUrl, key, base, model, ratio, duration }, onProgress) => {
+  if (!key) throw new Error("未配置 Runway API Key");
+  if (!base) throw new Error("未配置 Runway Base URL");
+  const hasImage = !!sourceImageUrl;
+  const endpoint = `${cleanBase(base)}/v1/${hasImage ? "image_to_video" : "text_to_video"}`;
+  const body = {
+    model:model || "gen4_turbo",
+    promptText:prompt,
+    ratio:RUNWAY_RATIO_MAP[ratio || "16:9"] || "1280:720",
+    duration:Number(duration) || 5,
+  };
+  if (hasImage) body.promptImage = sourceImageUrl;
+
+  const r = await apiFetch(endpoint, {
+    method:"POST",
+    headers:{
+      "Authorization":`Bearer ${key.trim()}`,
+      "Content-Type":"application/json",
+      "X-Runway-Version":"2024-11-06",
+    },
+    body:JSON.stringify(body),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(`Runway 创建任务失败 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+  const taskId = d.id || d.taskId || d.task_id;
+  if (!taskId) throw new Error("Runway 未返回任务 ID");
+  onProgress?.(8);
+  return await pollRunwayTask({ base, key, taskId, onProgress });
+};
+
+const genCustomVideoTask = async ({ prompt, sourceImageUrl, key, base, model, ratio, duration }, onProgress) => {
+  if (!key) throw new Error("未配置视频 API Key");
+  if (!base) throw new Error("未配置视频 Base URL");
+  // 自定义/中转协议：优先尝试 OpenAI 兼容 video generations。
+  const r = await apiFetch(`${cleanBase(base)}/v1/videos/generations`, {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${key.trim()}`, "Content-Type":"application/json"},
+    body:JSON.stringify({ model, prompt, image:sourceImageUrl || undefined, ratio, duration:duration || 5 }),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(`视频 API 错误 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+  const url = d.data?.[0]?.url || d.data?.[0]?.video_url || d.url || d.video_url;
+  const taskId = d.id || d.task_id || d.taskId || d.data?.[0]?.id;
+  if (url) return { videoUrl:url, taskId };
+  if (taskId && (d.status_url || d.task_url)) throw new Error("该中转返回了任务 ID，但当前自定义轮询字段未知，请使用 Runway 协议或扩展 genCustomVideoTask。任务ID："+taskId);
+  throw new Error("视频 API 未返回视频 URL；如服务商是异步任务接口，需要添加对应轮询适配器。");
+};
+
+const runImageTask = async (card) => {
+  const p = card.providerSnapshot || {};
+  const ratio = card.ratio || "1:1";
+  const dims = ASPECT_RATIOS.find(r=>r.id===ratio) || ASPECT_RATIOS[0];
+  if (!p.key) throw new Error("未配置图片 API Key，请在设置中填写。");
+  if (!p.base) throw new Error("未配置图片 Base URL，请在设置中填写。");
+  if (p.provider === "gemini_img" || String(p.base || "").toLowerCase().includes("generativelanguage.googleapis.com")) {
+    return { imageUrl:await genGeminiImage(card.prompt, p.key, p.base, p.model, ratio) };
+  }
+  if (p.provider === "jimeng_img") {
+    return { imageUrl:await genArkImage({ prompt:card.prompt, negative:card.negative, key:p.key, base:p.base, model:p.model, ratio }) };
+  }
+  return { imageUrl:await genOpenAIImage({ prompt:card.prompt, negative:card.negative, key:p.key, base:p.base, model:p.model, ratio, providerId:p.provider }) };
+};
+
+const runVideoTask = async (card, onProgress) => {
+  const p = card.providerSnapshot || {};
+  if (p.provider === "runway") {
+    return await genRunwayVideo({ prompt:card.prompt, sourceImageUrl:card.sourceImageUrl, key:p.key, base:p.base, model:p.model, ratio:card.ratio, duration:card.duration }, onProgress);
+  }
+  if (p.provider === "happyhorse") {
+    return await genHappyHorseVideo({ prompt:card.prompt, sourceImageUrl:card.sourceImageUrl, key:p.key, base:p.base, model:p.model, ratio:card.ratio, duration:card.duration }, onProgress);
+  }
+  if (p.provider === "jimeng_vid") {
+    return await genArkVideo({ prompt:card.prompt, sourceImageUrl:card.sourceImageUrl, key:p.key, base:p.base, model:p.model, ratio:card.ratio, duration:card.duration }, onProgress);
+  }
+  if (p.provider === "nanobanana_vid") {
+    if (!p.base) throw new Error("Nano Banana 本身是图片模型，没有官方视频 API。请在该项中填写你的 Nano Banana 视频中转 Base URL，或改用 HappyHorse / 即梦2.0。");
+  }
+  return await genCustomVideoTask({ prompt:card.prompt, sourceImageUrl:card.sourceImageUrl, key:p.key, base:p.base, model:p.model, ratio:card.ratio, duration:card.duration }, onProgress);
+};
+
+const runMediaTask = async (card, onProgress) => {
+  if ((card.type || "image") === "video") return await runVideoTask(card, onProgress);
+  return await runImageTask(card);
+};
+
+// Backward-compatible wrapper for old code paths.
+const generateMedia = async (item, prov, seed, dims) => {
+  const card = {
+    id:seed || Date.now(),
+    type:item.type || "image",
+    prompt:item.prompt,
+    negative:item.negative_prompt || item.negative,
+    ratio:item.ratio || "1:1",
+    duration:item.duration || 5,
+    sourceImageUrl:item.sourceImageUrl,
+    providerSnapshot:(item.type === "video")
+      ? { provider:prov?.vidProvider || "runway", key:prov?.runway?.key, base:prov?.runway?.url, model:prov?.runway?.model }
+      : { provider:prov?.active || "dalle", key:prov?.img?.key, base:prov?.img?.url, model:prov?.img?.model },
+  };
+  if (dims && !item.ratio) {
+    const hit = ASPECT_RATIOS.find(r=>r.w===dims.w && r.h===dims.h);
+    if (hit) card.ratio = hit.id;
+  }
+  const res = await runMediaTask(card);
+  return { url:res.imageUrl || res.videoUrl || res.url, ...res };
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  Chat API Calls + Real Thinking / Reasoning Mode
+// ═══════════════════════════════════════════════════════════════
+const extractJSONText = raw => {
+  const s = String(raw || "").replace(/```json\s?|```/g, "").trim();
+  try { return JSON.parse(s); } catch {}
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a >= 0 && b > a) {
+    try { return JSON.parse(s.slice(a, b + 1)); } catch {}
+  }
+  return { reply: raw || "", prompts: [], tasks: [], plan: [], action: "chat", intent: "chat" };
+};
+
+const getReasoningEffort = cfg => cfg.thinkingEffort || "medium";
+const isOfficialOpenAIBase = base => /(^|\/\/)api\.openai\.com/i.test(String(base || ""));
+const isOpenAIReasoningModel = model => /^(gpt-5|o[0-9]|o\d|gpt-oss)/i.test(String(model || ""));
+const isDeepSeekBase = base => /api\.deepseek\.com|deepseek/i.test(String(base || ""));
+const normalizeChatModelForThinking = (base, model, thinkingEnabled) => {
+  if (!thinkingEnabled) return model;
+  const m = String(model || "").trim();
+  // DeepSeek 的真实思考接口是 deepseek-reasoner；deepseek-chat 不会返回 reasoning_content。
+  if (isDeepSeekBase(base) && (!m || m === "deepseek-chat")) return "deepseek-reasoner";
+  return m;
+};
+
+const collectOpenAIOutputText = data => {
+  if (data.output_text) return data.output_text;
+  const chunks = [];
+  (data.output || []).forEach(item => {
+    (item.content || []).forEach(c => {
+      if (c.text) chunks.push(c.text);
+      if (c.type === "output_text" && c.text) chunks.push(c.text);
+    });
+  });
+  return chunks.join("");
+};
+
+const collectOpenAIReasoningSummary = data => {
+  const chunks = [];
+  (data.output || []).forEach(item => {
+    if (item.type === "reasoning") {
+      (item.summary || []).forEach(s => {
+        if (typeof s === "string") chunks.push(s);
+        else if (s.text) chunks.push(s.text);
+      });
+    }
+  });
+  return chunks.join("\n").trim();
+};
+
+const callGeminiChat = async (msgs, sys, cfg) => {
+  const { key, base, model } = cfg;
+  if (!key) throw new Error("未设置 Gemini API Key。");
+  const endpoint = `${cleanBase(base || "https://generativelanguage.googleapis.com")}/v1beta/models/${encodeURIComponent(model || "gemini-2.5-pro")}:generateContent?key=${encodeURIComponent(key.trim())}`;
+  const history = msgs
+    .filter(m=>m.id!=="welcome"&&!m.isError&&m.content)
+    .slice(-HISTORY_LIMIT)
+    .map(m=>({
+      role:m.role === "assistant" ? "model" : "user",
+      parts:[{text:m.rawContent||m.content}]
+    }));
+  const body = {
+    systemInstruction:{ parts:[{ text:sys }] },
+    contents:history,
+    generationConfig:{
+      responseMimeType:"application/json",
+      maxOutputTokens: cfg.thinkingEnabled ? 4096 : 1600,
+    }
+  };
+  if (cfg.thinkingEnabled) {
+    body.generationConfig.thinkingConfig = { thinkingBudget: cfg.thinkingEffort === "max" ? 24576 : cfg.thinkingEffort === "high" ? 8192 : 4096 };
+  }
+  const r = await apiFetch(endpoint, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body)
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(`Gemini 请求失败 (${r.status}): ${d.error?.message || d.message || "未知"}`);
+  const raw = (d.candidates?.[0]?.content?.parts || []).map(p=>p.text || "").join("") || "{}";
+  const thinkingSummary = (d.candidates?.[0]?.content?.parts || []).map(p=>p.thought || p.thoughtSignature || "").filter(Boolean).join("\n");
+  const parsed = extractJSONText(raw);
+  return { parsed, raw, thinkingSummary };
+};
+
+const callClaude = async (msgs, sys, cfg) => {
+  const { key, base, model } = cfg;
+  if (!key) throw new Error("未设置 API Key，请在设置中填写。");
+  const history = msgs
+    .filter(m=>m.id!=="welcome"&&!m.isError&&m.content)
+    .slice(-HISTORY_LIMIT)
+    .map(m=>({role:m.role, content:m.rawContent||m.content}));
+  const ep = `${(base||"https://api.anthropic.com").replace(/\/$/,"")}/v1/messages`;
+
+  const thinkingOn = !!cfg.thinkingEnabled;
+  const body = {
+    model:model||"claude-sonnet-4-6",
+    max_tokens: thinkingOn ? 4096 : 1200,
+    system:sys,
+    messages:history,
+  };
+
+  if (thinkingOn) {
+    // Claude 官方真实思考参数：adaptive thinking + output_config.effort。
+    // 如果模型不支持 adaptive thinking，API 会返回 400；下面会自动降级为手动 extended thinking 再试一次。
+    body.thinking = { type:"adaptive", display: cfg.thinkingShowSummary === false ? "omitted" : "summarized" };
+    body.output_config = { effort: getReasoningEffort(cfg) };
+  }
+
+  const headers = {
+    "Content-Type":"application/json",
+    "x-api-key": key.trim(),
+    "anthropic-version":"2023-06-01",
+    "anthropic-dangerous-direct-browser-access":"true",
+  };
+
+  const doFetch = async payload => apiFetch(ep, {
+    method:"POST",
+    headers,
+    body:JSON.stringify(payload)
+  });
+
+  let r = await doFetch(body);
+
+  // 部分旧 Claude 3.7/4.5 模型不吃 adaptive thinking，自动用手动 extended thinking 重试一次。
+  if (!r.ok && thinkingOn && r.status === 400) {
+    const fallbackBody = {
+      ...body,
+      max_tokens: Math.max(4096, Number(body.max_tokens) || 4096),
+      thinking: {
+        type:"enabled",
+        budget_tokens: Math.min(2048, Math.max(1024, (Number(body.max_tokens) || 4096) - 1024)),
+        display: cfg.thinkingShowSummary === false ? "omitted" : "summarized",
+      },
+    };
+    delete fallbackBody.output_config;
+    r = await doFetch(fallbackBody);
+  }
+
+  if (!r.ok) {
+    const e=await r.json().catch(()=>({}));
+    if(r.status===401) throw new Error("API Key 无效，请检查设置。");
+    if(r.status===429) throw new Error("请求过于频繁，请稍后再试。");
+    if(r.status===529) throw new Error("Claude 服务过载，请稍后再试。");
+    throw new Error(`请求失败 (${r.status}): ${e.error?.message||e.message||"未知"}`);
+  }
+
+  const data = await r.json();
+  const textBlocks = data.content?.filter(b=>b.type==="text").map(b=>b.text||"") || [];
+  const thinkingSummary = data.content?.filter(b=>b.type==="thinking").map(b=>b.thinking||"").filter(Boolean).join("\n").trim() || "";
+  const raw = textBlocks.join("") || "{}";
+  const parsed = extractJSONText(raw);
+  return { parsed, raw, thinkingSummary };
+};
+
+const callOpenAIResponsesChat = async (msgs, sys, cfg) => {
+  const { key, base, model } = cfg;
+  const history = msgs
+    .filter(m=>m.id!=="welcome"&&!m.isError&&m.content)
+    .slice(-HISTORY_LIMIT)
+    .map(m=>({role:m.role, content:m.rawContent||m.content}));
+
+  const input = [{ role:"system", content:sys }, ...history];
+  const ep = `${base.replace(/\/$/,"")}/v1/responses`;
+  const body = {
+    model:model||"gpt-5.1",
+    input,
+    max_output_tokens: cfg.thinkingEnabled ? 4096 : 1200,
+    reasoning: cfg.thinkingEnabled
+      ? { effort:getReasoningEffort(cfg), summary: cfg.thinkingShowSummary === false ? null : "auto" }
+      : undefined,
+  };
+  if (!body.reasoning) delete body.reasoning;
+
+  const r = await apiFetch(ep, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":`Bearer ${key.trim()}`,
+    },
+    body:JSON.stringify(body)
+  });
+
+  if (!r.ok) {
+    const e=await r.json().catch(()=>({}));
+    throw new Error(`请求失败 (${r.status}): ${e.error?.message||e.message||"未知"}`);
+  }
+
+  const data = await r.json();
+  const raw = collectOpenAIOutputText(data) || "{}";
+  const thinkingSummary = collectOpenAIReasoningSummary(data);
+  const parsed = extractJSONText(raw);
+  return { parsed, raw, thinkingSummary };
+};
+
+const readOpenAICompatibleStream = async (r, handlers={}) => {
+  const reader = r.body?.getReader?.();
+  if (!reader) throw new Error("当前浏览器不支持流式读取，或服务端没有返回 stream。");
+  const decoder = new TextDecoder("utf-8");
+  let buf = "", content = "", reasoning = "";
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, {stream:true});
+    const parts = buf.split("\n\n");
+    buf = parts.pop() || "";
+    for (const part of parts) {
+      const lines = part.split("\n").map(x=>x.trim()).filter(Boolean);
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data);
+          const delta = j.choices?.[0]?.delta || {};
+          const rc = delta.reasoning_content || delta.reasoning || "";
+          const cc = delta.content || "";
+          if (rc) {
+            reasoning += rc;
+            handlers.onThinking?.(reasoning);
+          }
+          if (cc) {
+            content += cc;
+            handlers.onContent?.(content);
+          }
+        } catch {}
+      }
+    }
+  }
+  return { content, reasoning };
+};
+
+const callDeepSeekThinkingStream = async (msgs, sys, cfg, handlers={}) => {
+  const { key, base, model } = cfg;
+  const effectiveModel = normalizeChatModelForThinking(base, model, true);
+  const history = msgs
+    .filter(m=>m.id!=="welcome"&&!m.isError&&m.content)
+    .slice(-HISTORY_LIMIT)
+    .map(m=>({role:m.role, content:m.rawContent||m.content}));
+  const messages = [{ role:"system", content:sys }, ...history];
+  const ep = `${cleanBase(base || "https://api.deepseek.com")}/v1/chat/completions`;
+  const effort = cfg.thinkingEffort === "max" ? "max" : "high";
+  const body = {
+    model:effectiveModel || "deepseek-v4-pro",
+    messages,
+    stream:true,
+    max_tokens: cfg.thinkingEffort === "max" ? 12000 : 6000,
+    thinking:{ type:"enabled" },
+    reasoning_effort: effort,
+    response_format:{ type:"json_object" },
+  };
+
+  let r = await apiFetch(ep, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":`Bearer ${key.trim()}`,
+    },
+    body:JSON.stringify(body)
+  });
+
+  // Older DeepSeek-compatible gateways may reject thinking/reasoning_effort; retry with deepseek-reasoner streaming.
+  if (!r.ok) {
+    const err = await r.clone().json().catch(()=>({}));
+    const fallback = {
+      model: model === "deepseek-reasoner" ? "deepseek-reasoner" : "deepseek-reasoner",
+      messages,
+      stream:true,
+      max_tokens: cfg.thinkingEffort === "max" ? 12000 : 6000,
+      response_format:{ type:"json_object" },
+    };
+    r = await apiFetch(ep, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":`Bearer ${key.trim()}`,
+      },
+      body:JSON.stringify(fallback)
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(()=>err||{});
+      throw new Error(`DeepSeek 思考请求失败 (${r.status}): ${e.error?.message || e.message || "未知"}`);
+    }
+  }
+
+  const { content, reasoning } = await readOpenAICompatibleStream(r, handlers);
+  const raw = content || "{}";
+  const parsed = extractJSONText(raw);
+  return { parsed, raw, thinkingSummary: reasoning };
+};
+
+const callOpenAIChat = async (msgs, sys, cfg, handlers={}) => {
+  const { key, base, model } = cfg;
+  const effectiveModel = normalizeChatModelForThinking(base, model, cfg.thinkingEnabled);
+  if (!key) throw new Error("未设置 API Key，请在设置中填写。");
+  if (!base) throw new Error("未设置 Base URL，请在设置中填写。");
+
+  if (cfg.thinkingEnabled && isDeepSeekBase(base)) {
+    return callDeepSeekThinkingStream(msgs, sys, {...cfg, model:effectiveModel}, handlers);
+  }
+
+  // OpenAI 官方推理模型走 Responses API，真实传 reasoning.effort / reasoning.summary。
+  if (cfg.thinkingEnabled && isOfficialOpenAIBase(base) && isOpenAIReasoningModel(effectiveModel)) {
+    return callOpenAIResponsesChat(msgs, sys, {...cfg, model: effectiveModel});
+  }
+
+  const history = msgs
+    .filter(m=>m.id!=="welcome"&&!m.isError&&m.content)
+    .slice(-HISTORY_LIMIT)
+    .map(m=>({role:m.role, content:m.rawContent||m.content}));
+  const messages = [{ role:"system", content:sys }, ...history];
+  const ep = getOpenAIChatURL(base);
+  const body = { model:effectiveModel||"gpt-4o", max_tokens: cfg.thinkingEnabled ? 2400 : 1200, messages };
+
+  if (cfg.thinkingEnabled && !isDeepSeekBase(base)) {
+    body.reasoning_effort = getReasoningEffort(cfg);
+  }
+
+  const r = await apiFetch(ep, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":`Bearer ${key.trim()}`,
+    },
+    body:JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const e=await r.json().catch(()=>({}));
+    if(r.status===401) throw new Error("API Key 无效，请检查设置。");
+    if(r.status===429) throw new Error("请求过于频繁，请稍后再试。");
+    throw new Error(`请求失败 (${r.status}): ${e.error?.message||e.message||"未知"}`);
+  }
+  const data = await r.json();
+  const msg = data.choices?.[0]?.message || {};
+  const raw = msg.content || msg.reasoning_content || "{}";
+  const thinkingSummary = msg.reasoning_content || "";
+  const parsed = extractJSONText(raw);
+  return { parsed, raw, thinkingSummary };
+};
+
+const callChat = async (msgs, sys, cfg, handlers={}) => {
+  // auto-detect format from base URL if not explicitly set
+  let fmt = cfg.chatFormat;
+  const b = (cfg.base||"").toLowerCase();
+  if (!fmt || fmt === "anthropic") {
+    if (b && !b.includes("anthropic")) fmt = b.includes("generativelanguage.googleapis.com") ? "gemini" : "openai";
+  }
+  if (fmt === "anthropic") return callClaude(msgs, sys, cfg);
+  if (fmt === "gemini") return callGeminiChat(msgs, sys, cfg);
+  return callOpenAIChat(msgs, sys, cfg, handlers);
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  Utility Styles
+// ═══════════════════════════════════════════════════════════════
+const merge = (...args) => Object.assign({}, ...args);
+
+// ═══════════════════════════════════════════════════════════════
+//  Component: Message Bubble
+// ═══════════════════════════════════════════════════════════════
+function MsgBubble({ msg, onQuickIdea }) {
+  const [open, setOpen] = useState(false);
+
+  if (msg.role==="user") return (
+    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+      <div style={{
+        maxWidth:"80%", padding:"10px 16px", fontSize:13, lineHeight:1.7,
+        background:"var(--accent)", color:"#1A1608",
+        borderRadius:"16px 16px 4px 16px", fontWeight:500,
+        boxShadow:"0 2px 12px rgba(232,168,73,0.15)",
+      }}>{msg.content}</div>
+    </div>
+  );
+
+  return (
+    <div style={{display:"flex",gap:10,marginBottom:16}} className="msg-enter">
+      <div style={{
+        width:28, height:28, borderRadius:8, flexShrink:0, marginTop:2,
+        background:"var(--bg-surface)", border:"1px solid var(--border-default)",
+        display:"flex", alignItems:"center", justifyContent:"center",
+      }}>
+        <Ic n="sparkle" size={13} color="var(--accent)" sw={1.3}/>
+      </div>
+      <div style={{flex:1,minWidth:0}}>
+        <p style={{
+          fontSize:13, color:msg.isError?"#E87066":"var(--text-primary)",
+          lineHeight:1.7, marginBottom:msg.plan?.length?6:0,
+          fontWeight:msg.isError?500:400,
+        }}>{msg.content}</p>
+
+        {(msg.understanding||msg.plan?.length>0||msg.thinkingSummary) && (
+          <div style={{marginTop:6, marginBottom:6}}>
+            <button onClick={()=>setOpen(!open)}
+              style={{
+                display:"flex", alignItems:"center", gap:5, background:"none",
+                border:"none", color:"var(--text-muted)", fontSize:10,
+                padding:0, letterSpacing:"0.04em", textTransform:"uppercase",
+                transition:"color .2s",
+              }}
+              onMouseEnter={e=>e.target.style.color="var(--text-secondary)"}
+              onMouseLeave={e=>e.target.style.color="var(--text-muted)"}>
+              <Ic n={open?"chevUp":"chevDown"} size={10} sw={1.4}/>
+              <span>{msg.thinkingSummary ? "模型思考 / 执行计划" : "执行计划"}</span>
+            </button>
+            {open && (
+              <div style={{
+                marginTop:8, paddingLeft:12,
+                borderLeft:"1.5px solid var(--border-accent)",
+                animation:"fadeUp .3s var(--ease-out)",
+              }}>
+                {msg.thinkingSummary && (
+                  <div style={{
+                    padding:"8px 10px", marginBottom:8,
+                    background:"rgba(255,255,255,0.025)",
+                    border:"1px solid var(--border-subtle)", borderRadius:8,
+                  }}>
+                    <div style={{fontSize:9,color:"var(--accent)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:5,fontWeight:600}}>
+                      Thinking Summary
+                    </div>
+                    <p style={{fontSize:10,color:"var(--text-secondary)",lineHeight:1.65,whiteSpace:"pre-wrap"}}>
+                      {msg.thinkingSummary}
+                    </p>
+                  </div>
+                )}
+                {msg.understanding && (
+                  <p style={{fontSize:11,color:"var(--text-secondary)",lineHeight:1.6,marginBottom:6,
+                    fontStyle:"italic", fontFamily:"var(--font-display)"}}>
+                    {msg.understanding}
+                  </p>
+                )}
+                {msg.plan?.map((s,i)=>(
+                  <div key={i} style={{display:"flex",gap:8,marginBottom:4}}>
+                    <span style={{fontSize:10,color:"var(--accent)",flexShrink:0,
+                      fontFamily:"var(--font-mono)",fontWeight:500}}>
+                      {String(i+1).padStart(2,"0")}
+                    </span>
+                    <span style={{fontSize:11,color:"var(--text-secondary)",lineHeight:1.5}}>{s}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {msg.labels?.length>0 && (
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
+            {msg.labels.map((l,i)=>(
+              <span key={i} style={{
+                display:"inline-flex", alignItems:"center", gap:4,
+                padding:"3px 10px", background:"var(--accent-soft)",
+                border:"1px solid var(--border-accent)", borderRadius:20,
+                color:"var(--accent)", fontSize:10, fontWeight:500,
+              }}>
+                <Ic n="image" size={9} color="var(--accent)" sw={1.3}/>{l}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Component: Canvas Card
+// ═══════════════════════════════════════════════════════════════
+function CanvasCard({ item, sel, onClick, onDel, onRegen, onMod }) {
+  const [loaded, setLoaded] = useState(false);
+  const [hov, setHov] = useState(false);
+  const isVid = item.type==="video";
+  const isSel = sel;
+  const mediaUrl = item.videoUrl || item.imageUrl || item.url;
+
+  return (
+    <div onClick={onClick}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      className="card-enter"
+      style={{
+        borderRadius:10, overflow:"hidden", cursor:"pointer",
+        border: isSel ? "1px solid var(--accent)" : "1px solid var(--border-subtle)",
+        transform: hov&&!isSel ? "translateY(-3px)" : "none",
+        transition:"transform .25s var(--ease-out), border-color .25s var(--ease-out), box-shadow .25s var(--ease-out)",
+        background:"var(--bg-surface)",
+        boxShadow: isSel ? "0 4px 24px rgba(232,168,73,0.1)" : hov ? "0 8px 32px rgba(0,0,0,0.3)" : "none",
+      }}>
+
+      <div style={{aspectRatio:"4/3",background:"var(--bg-elevated)",position:"relative",overflow:"hidden"}}>
+        {/* Loading state */}
+        {item.status==="loading" && (
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+            alignItems:"center",justifyContent:"center",gap:10}}>
+            <div style={{width:24,height:24,border:"1.5px solid var(--border-default)",
+              borderTopColor:"var(--accent)",borderRadius:"50%",animation:"spin .9s linear infinite"}}/>
+            <span style={{fontSize:10,color:"var(--text-muted)",letterSpacing:"0.06em",
+              textTransform:"uppercase",fontWeight:500}}>
+              {isVid?"正在生成视频":"正在生成图像"}{item.progress ? ` · ${item.progress}%` : ""}
+            </span>
+          </div>
+        )}
+
+        {/* Error state */}
+        {item.status==="error" && (
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+            alignItems:"center",justifyContent:"center",gap:10}}>
+            <Ic n="alert" size={22} color="var(--danger)" sw={1.4}/>
+            <span style={{fontSize:10,color:"var(--danger)",fontWeight:500}}>生成失败</span>
+            {item.err && <span style={{fontSize:9,color:"var(--text-muted)",maxWidth:"80%",textAlign:"center",lineHeight:1.4}}>{item.err}</span>}
+            <button onClick={e=>{e.stopPropagation();onRegen(item);}}
+              style={{
+                padding:"5px 14px", background:"var(--danger-soft)",
+                border:"1px solid rgba(196,85,74,0.2)", borderRadius:6,
+                color:"var(--danger)", fontSize:10, fontWeight:500, letterSpacing:"0.02em",
+              }}>重试</button>
+          </div>
+        )}
+
+        {/* Image */}
+        {mediaUrl && !isVid && (
+          <>
+            {!loaded && <div style={{position:"absolute",inset:0,display:"flex",
+              alignItems:"center",justifyContent:"center",
+              background:"var(--bg-surface)"}}>
+              <div style={{width:20,height:20,border:"1.5px solid var(--border-default)",
+                borderTopColor:"var(--accent)",borderRadius:"50%",animation:"spin .9s linear infinite"}}/>
+            </div>}
+            <img src={mediaUrl} alt={item.label}
+              style={{width:"100%",height:"100%",objectFit:"cover",
+                opacity:loaded?1:0, transition:"opacity .5s var(--ease-out)"}}
+              onLoad={()=>setLoaded(true)} onError={()=>setLoaded(true)}/>
+          </>
+        )}
+
+        {/* Video */}
+        {isVid && item.status==="done" && mediaUrl && (
+          <video src={mediaUrl} controls playsInline
+            style={{width:"100%",height:"100%",objectFit:"cover",background:"var(--bg-elevated)"}}/>
+        )}
+        {isVid && item.status==="done" && !mediaUrl && (
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+            alignItems:"center",justifyContent:"center",gap:10,
+            background:"var(--accent-glow)"}}>
+            <Ic n="film" size={26} color="var(--accent)" sw={1.2}/>
+            <span style={{fontSize:10,color:"var(--accent)",fontWeight:500,
+              letterSpacing:"0.04em"}}>视频任务已完成，未返回URL</span>
+          </div>
+        )}
+
+        {/* Hover overlay */}
+        {hov && item.status==="done" && (
+          <div style={{
+            position:"absolute",inset:0,background:"rgba(8,8,13,0.7)",
+            backdropFilter:"blur(4px)",
+            display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+            animation:"fadeIn .2s var(--ease-out)",
+          }}>
+            {mediaUrl && <button onClick={e=>{e.stopPropagation();window.open(mediaUrl,"_blank");}}
+              style={{padding:8,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.1)",
+                borderRadius:6,display:"flex",transition:"background .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+              <Ic n="eye" size={14} color="#fff" sw={1.4}/>
+            </button>}
+            <button onClick={e=>{e.stopPropagation();onRegen(item);}}
+              style={{padding:8,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.1)",
+                borderRadius:6,display:"flex",transition:"background .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+              <Ic n="refresh" size={14} color="#fff" sw={1.4}/>
+            </button>
+            <button onClick={e=>{e.stopPropagation();onMod(item);}}
+              style={{padding:8,background:"var(--accent)",border:"none",
+                borderRadius:6,display:"flex",transition:"transform .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.05)"}
+              onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+              <Ic n="wand" size={14} color="#1A1608" sw={1.4}/>
+            </button>
+          </div>
+        )}
+
+        {/* Modified badge */}
+        {item.modifiesId && (
+          <div style={{position:"absolute",top:8,left:8}}>
+            <div style={{
+              display:"flex", alignItems:"center", gap:4, padding:"3px 8px",
+              background:"rgba(8,8,13,0.85)", backdropFilter:"blur(8px)",
+              borderRadius:20, fontSize:9, color:"var(--accent)", fontWeight:500,
+              border:"1px solid var(--border-accent)",
+            }}>
+              <Ic n="layers" size={8} color="var(--accent)" sw={1.3}/> 修改自 #{item.modifiesId}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{padding:"10px 12px"}}>
+        <p style={{
+          fontSize:12, color:"var(--text-primary)", fontWeight:500,
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+          lineHeight:1.4,
+        }}>{item.label}</p>
+        <p style={{
+          fontSize:9, color:"var(--text-muted)", marginTop:3,
+          letterSpacing:"0.03em", textTransform:"uppercase",
+        }}>{item.providerSnapshot?.provider || item.prov} · {item.type}</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Component: Detail Panel
+// ═══════════════════════════════════════════════════════════════
+function DetailPanel({ item, onClose, onMod, onRegen, onDel }) {
+  const [full, setFull] = useState(false);
+  const mediaUrl = item.videoUrl || item.imageUrl || item.url;
+  const acts = [
+    { n:"wand",    l:"修改", fn:()=>onMod(item),  accent:true },
+    { n:"refresh", l:"重新生成", fn:()=>onRegen(item) },
+    { n:"download",l:"下载", fn:()=>mediaUrl&&window.open(mediaUrl,"_blank") },
+    { n:"trash",   l:"删除",     fn:()=>onDel(item.id), danger:true },
+  ];
+  return (
+    <div className="slide-in" style={{
+      width:220, borderLeft:"1px solid var(--border-subtle)",
+      padding:"16px 14px", overflowY:"auto", flexShrink:0,
+      background:"var(--bg-elevated)",
+    }}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <span style={{
+          fontSize:12, fontWeight:600, color:"var(--text-primary)",
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
+          fontFamily:"var(--font-display)", fontStyle:"italic",
+        }}>{item.label}</span>
+        <button onClick={onClose} style={{
+          background:"none", border:"none", color:"var(--text-muted)", marginLeft:6,
+          padding:2, display:"flex", transition:"color .15s",
+        }}
+        onMouseEnter={e=>e.currentTarget.style.color="var(--text-secondary)"}
+        onMouseLeave={e=>e.currentTarget.style.color="var(--text-muted)"}>
+          <Ic n="close" size={14} sw={1.4}/>
+        </button>
+      </div>
+
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:16}}>
+        {[(item.providerSnapshot?.provider || item.prov), item.providerSnapshot?.model, item.type].filter(Boolean).map(t=>(
+          <span key={t} style={{
+            display:"inline-flex", alignItems:"center", gap:3,
+            padding:"3px 9px", background:"var(--accent-soft)",
+            border:"1px solid var(--border-accent)", borderRadius:20,
+            color:"var(--accent)", fontSize:9, fontWeight:500,
+            letterSpacing:"0.03em",
+          }}>
+            <Ic n="zap" size={8} color="var(--accent)" sw={1.3}/>{t}
+          </span>
+        ))}
+      </div>
+
+      <div style={{marginBottom:16}}>
+        <p style={{
+          fontSize:9, color:"var(--text-muted)", textTransform:"uppercase",
+          letterSpacing:"0.1em", marginBottom:6, fontWeight:600,
+        }}>提示词</p>
+        <p style={{
+          fontSize:11, color:"var(--text-secondary)", lineHeight:1.7,
+          wordBreak:"break-word",
+          maxHeight:full?"none":80, overflow:"hidden",
+          fontFamily:"var(--font-mono)", fontWeight:400,
+        }}>{item.prompt}</p>
+        {item.prompt?.length>180 && (
+          <button onClick={()=>setFull(!full)}
+            style={{
+              fontSize:9, color:"var(--accent)", background:"none", border:"none",
+              padding:0, marginTop:4, fontWeight:500, letterSpacing:"0.04em",
+              textTransform:"uppercase",
+            }}>
+            {full?"收起":"展开"}
+          </button>
+        )}
+      </div>
+
+      {item.negative && (
+        <div style={{marginBottom:16}}>
+          <p style={{
+            fontSize:9, color:"var(--text-muted)", textTransform:"uppercase",
+            letterSpacing:"0.1em", marginBottom:6, fontWeight:600,
+          }}>负向提示</p>
+          <p style={{
+            fontSize:10, color:"var(--text-ghost)", lineHeight:1.6,
+            wordBreak:"break-word", fontFamily:"var(--font-mono)",
+          }}>{item.negative}</p>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+        {acts.map(({n,l,fn,accent,danger})=>(
+          <button key={l} onClick={fn} style={{
+            display:"flex", alignItems:"center", gap:8,
+            width:"100%", padding:"8px 12px", justifyContent:"center",
+            background: accent ? "var(--accent-soft)" : danger ? "var(--danger-soft)" : "rgba(255,255,255,0.02)",
+            border:`1px solid ${accent ? "var(--border-accent)" : danger ? "rgba(196,85,74,0.15)" : "var(--border-subtle)"}`,
+            borderRadius:6,
+            color: accent ? "var(--accent)" : danger ? "var(--danger)" : "var(--text-secondary)",
+            fontSize:11, fontWeight:500, letterSpacing:"0.02em",
+            transition:"all .15s",
+          }}
+          onMouseEnter={e=>{
+            if(accent) e.currentTarget.style.background="rgba(232,168,73,0.15)";
+            else if(danger) e.currentTarget.style.background="rgba(196,85,74,0.12)";
+            else e.currentTarget.style.background="rgba(255,255,255,0.04)";
+          }}
+          onMouseLeave={e=>{
+            if(accent) e.currentTarget.style.background="var(--accent-soft)";
+            else if(danger) e.currentTarget.style.background="var(--danger-soft)";
+            else e.currentTarget.style.background="rgba(255,255,255,0.02)";
+          }}>
+            <Ic n={n} size={12} sw={1.3}/>
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Component: Settings Panel (Three-Track)
+// ═══════════════════════════════════════════════════════════════
+function SettingsPanel({ cfg, onChange, fromCC, fetchedModels, modelsLoading, onFetchModels, updateProviderKey, switchProvider, testConnection }) {
+  const [tab, setTab] = useState("chat");
+  const tabs = [{id:"chat",l:"对话模型",icon:"sparkle"},{id:"img",l:"图像模型",icon:"image"},{id:"vid",l:"视频模型",icon:"film"}];
+  const [testResult, setTestResult] = useState(null); // {ok, msg, track, providerId}
+  const [apiActionMsg, setApiActionMsg] = useState(null); // 顶部 API 保存/删除反馈
+
+
+  const inpBase = {
+    width:"100%", background:"var(--bg-primary)", fontSize:11, padding:"7px 10px",
+    color:"var(--text-primary)", outline:"none", boxSizing:"border-box",
+    fontFamily:"var(--font-mono)", borderRadius:6,
+    border:"1px solid var(--border-default)", transition:"border-color .2s",
+  };
+  const lbl = {
+    display:"block", fontSize:9, color:"var(--text-muted)", marginBottom:4,
+    textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600,
+  };
+  const cardWrap = {
+    padding:"14px 16px", background:"var(--bg-surface)",
+    border:"1px solid var(--border-subtle)", borderRadius:8,
+  };
+
+  // Provider dropdown shared across tabs
+  const ProviderSelect = ({ providers, activeId, onChangeProv }) => (
+    <div style={{marginBottom:14}}>
+      <label style={lbl}>Provider</label>
+      <div style={{position:"relative",width:"100%"}}>
+        <select value={activeId} onChange={e => onChangeProv(e.target.value)}
+          style={{...inpBase, paddingRight:32, fontFamily:"var(--font-body)", cursor:"pointer"}}>
+          {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none",display:"flex"}}>
+          <Ic n="chevDown" size={12} color="var(--text-muted)" sw={1.4}/>
+        </span>
+      </div>
+    </div>
+  );
+
+  // Key + URL fields
+  const KeyUrlFields = ({ k, b, onK, onB, kPh, bPh, noKey }) => (
+    <div style={{display:"grid",gridTemplateColumns:noKey?"1fr":"1fr 1fr",gap:10,marginBottom:12}}>
+      {!noKey && (
+        <div>
+          <label style={lbl}>API Key</label>
+          <input type="password" value={k} onChange={onK} placeholder={kPh}
+            style={{
+              ...inpBase,
+              border: !k ? "1px solid rgba(232,168,73,0.35)" : "1px solid var(--border-default)",
+            }}
+            onFocus={e=>e.target.style.borderColor="var(--border-accent)"}
+            onBlur={e=>e.target.style.borderColor=!k?"rgba(232,168,73,0.35)":"var(--border-default)"}/>
+        </div>
+      )}
+      <div>
+        <label style={lbl}>Base URL</label>
+        <input type="text" value={b} onChange={onB} placeholder={bPh}
+          style={inpBase}
+          onFocus={e=>e.target.style.borderColor="var(--border-accent)"}
+          onBlur={e=>e.target.style.borderColor="var(--border-default)"}/>
+      </div>
+    </div>
+  );
+
+  // Refresh button + model count badge
+  const ModelHeader = ({ models, loading, providerId }) => (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        {models.length > 0 && (
+          <span style={{
+            padding:"1px 8px", background:"var(--success-soft)",
+            border:"1px solid rgba(93,174,139,0.15)", borderRadius:20,
+            fontSize:9, color:"var(--success)", fontWeight:500,
+          }}>{models.length} 个模型已发现</span>
+        )}
+        {models.length === 0 && !loading && (
+          <span style={{fontSize:9,color:"var(--text-ghost)"}}>填写 Key 和 URL 后自动获取模型列表</span>
+        )}
+      </div>
+      <button onClick={() => onFetchModels(providerId)} disabled={loading}
+        style={{
+          display:"flex",alignItems:"center",gap:4,padding:"3px 10px",
+          background:"var(--accent-soft)", border:"1px solid var(--border-accent)",
+          borderRadius:6, fontSize:10, color:"var(--accent)", fontWeight:500,
+          opacity:loading ? 0.6 : 1, transition:"all .15s",
+        }}>
+        <Ic n="refresh" size={10} sw={1.4} className={loading ? "spin-anim" : ""}/>
+        {loading ? "获取中" : "刷新模型"}
+      </button>
+    </div>
+  );
+
+  // Model chip list (clickable)
+  const ModelChips = ({ models, activeModel, onSelect }) => models.length > 0 && (
+    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:4}}>
+      {models.slice(0,18).map(m => (
+        <button key={m.id} onClick={() => onSelect && onSelect(m.id)}
+          style={{
+            padding:"2px 7px",
+            background: activeModel===m.id ? "var(--accent-soft)" : "rgba(255,255,255,0.02)",
+            border:`1px solid ${activeModel===m.id ? "var(--border-accent)" : "var(--border-subtle)"}`,
+            borderRadius:4, fontSize:9,
+            color: activeModel===m.id ? "var(--accent)" : "var(--text-secondary)",
+            fontFamily:"var(--font-mono)", fontWeight: activeModel===m.id ? 600 : 400,
+            cursor: onSelect ? "pointer" : "default", transition:"all .15s",
+          }}
+          onMouseEnter={e=>{if(activeModel!==m.id){e.currentTarget.style.borderColor="var(--border-default)";e.currentTarget.style.color="var(--text-primary)";}}}
+          onMouseLeave={e=>{if(activeModel!==m.id){e.currentTarget.style.borderColor="var(--border-subtle)";e.currentTarget.style.color="var(--text-secondary)";}}}
+        >{m.id}</button>
+      ))}
+      {models.length > 18 && (
+        <span style={{fontSize:9,color:"var(--text-muted)",padding:"2px 4px"}}>
+          +{models.length - 18} 更多
+        </span>
+      )}
+    </div>
+  );
+
+  const getTrackProviders = (track) => track === "chat" ? CHAT_PROVIDERS : track === "img" ? IMG_PROVIDERS : VID_PROVIDERS;
+  const getProviderField = (track) => track === "chat" ? "chatProvider" : track === "img" ? "imgProvider" : "vidProvider";
+  const getModelField = (track) => track === "chat" ? "chatModel" : track === "img" ? "imgModel" : "vidModel";
+  const getFlatFields = (track) => track === "chat"
+    ? { key:"chatKey", base:"chatBase", model:"chatModel" }
+    : track === "img"
+      ? { key:"imgKey", base:"imgBase", model:"imgModel" }
+      : { key:"vidKey", base:"vidBase", model:"vidModel" };
+
+  const getActiveApiMeta = () => {
+    const providers = getTrackProviders(tab);
+    const providerId = cfg[getProviderField(tab)];
+    const provider = providers.find(p => p.id === providerId) || providers[0];
+    const pk = cfg.providerKeys?.[tab]?.[providerId] || { key:"", base:provider?.defaultUrl || "" };
+    const model = cfg[getModelField(tab)] || "";
+    return { track:tab, providerId, provider, pk, model };
+  };
+
+  const showApiActionMsg = (msg, ok=true) => {
+    setApiActionMsg({ msg, ok });
+    window.clearTimeout(window.__saiApiActionTimer);
+    window.__saiApiActionTimer = window.setTimeout(() => setApiActionMsg(null), 2600);
+  };
+
+  const saveCurrentApi = () => {
+    saveCfg(cfg);
+    const meta = getActiveApiMeta();
+    showApiActionMsg(`已保存当前${tab==="chat"?"文本":tab==="img"?"图片":"视频"} API：${meta.provider?.name || meta.providerId}`);
+  };
+
+  const deleteCurrentApi = () => {
+    const meta = getActiveApiMeta();
+    const c = {
+      ...cfg,
+      providerKeys:{
+        ...(cfg.providerKeys || {}),
+        [tab]:{...(cfg.providerKeys?.[tab] || {})}
+      }
+    };
+    c.providerKeys[tab][meta.providerId] = { key:"", base:meta.provider?.defaultUrl || "" };
+
+    const fields = getFlatFields(tab);
+    c[fields.key] = "";
+    c[fields.base] = meta.provider?.defaultUrl || "";
+    c[fields.model] = "";
+
+    onChange(c);
+    setTestResult(null);
+    showApiActionMsg(`已删除当前 API 信息：${meta.provider?.name || meta.providerId}`);
+  };
+
+  const clearAllApiInfo = () => {
+    if (!window.confirm("确定要清空所有文本、图片、视频 API 信息吗？这会删除本机 localStorage 中保存的 API Key、Base URL 和模型 ID。")) return;
+
+    const resetTrack = (providers) => {
+      const out = {};
+      providers.forEach(p => { out[p.id] = { key:"", base:p.defaultUrl || "" }; });
+      return out;
+    };
+
+    const chatProvider = cfg.chatProvider || "claude";
+    const imgProvider = cfg.imgProvider || "dalle";
+    const vidProvider = cfg.vidProvider || "runway";
+    const chatDefault = CHAT_PROVIDERS.find(p=>p.id===chatProvider)?.defaultUrl || "";
+    const imgDefault = IMG_PROVIDERS.find(p=>p.id===imgProvider)?.defaultUrl || "";
+    const vidDefault = VID_PROVIDERS.find(p=>p.id===vidProvider)?.defaultUrl || "";
+
+    const c = {
+      ...cfg,
+      chatKey:"", chatBase:chatDefault, chatModel:"",
+      imgKey:"", imgBase:imgDefault, imgModel:"",
+      vidKey:"", vidBase:vidDefault, vidModel:"",
+      providerKeys:{
+        chat:resetTrack(CHAT_PROVIDERS),
+        img:resetTrack(IMG_PROVIDERS),
+        vid:resetTrack(VID_PROVIDERS),
+      }
+    };
+
+    onChange(c);
+    setTestResult(null);
+    showApiActionMsg("已清空所有 API 信息");
+  };
+
+  const apiBtnStyle = (kind="normal") => ({
+    display:"inline-flex", alignItems:"center", gap:5, padding:"5px 10px",
+    background: kind==="danger" ? "var(--danger-soft)" : kind==="accent" ? "var(--accent-soft)" : "rgba(255,255,255,0.03)",
+    border:`1px solid ${kind==="danger" ? "rgba(196,85,74,0.18)" : kind==="accent" ? "var(--border-accent)" : "var(--border-subtle)"}`,
+    borderRadius:6, fontSize:10,
+    color: kind==="danger" ? "var(--danger)" : kind==="accent" ? "var(--accent)" : "var(--text-secondary)",
+    fontWeight:500, cursor:"pointer", transition:"all .15s",
+  });
+
+  // ── Chat Tab ──
+  const chatProv = CHAT_PROVIDERS.find(p => p.id === cfg.chatProvider) || CHAT_PROVIDERS[0];
+  const chatModels = fetchedModels[cfg.chatProvider] || [];
+
+  // ── Image Tab ──
+  const imgProv = IMG_PROVIDERS.find(p => p.id === cfg.imgProvider) || IMG_PROVIDERS[0];
+  const imgModels = fetchedModels[cfg.imgProvider] || [];
+
+  // ── Video Tab ──
+  const vidProv = VID_PROVIDERS.find(p => p.id === cfg.vidProvider) || VID_PROVIDERS[0];
+  const vidModels = fetchedModels[cfg.vidProvider] || [];
+
+  return (
+    <div className="slide-in" style={{
+      background:"var(--bg-elevated)", borderBottom:"1px solid var(--border-subtle)",
+      padding:"14px 20px", flexShrink:0,
+    }}>
+      {fromCC && (
+        <div style={{
+          display:"flex", alignItems:"center", gap:8, marginBottom:12,
+          padding:"8px 14px", background:"var(--success-soft)",
+          border:"1px solid rgba(93,174,139,0.15)", borderRadius:6,
+        }}>
+          <Ic n="check" size={12} color="var(--success)" sw={1.8}/>
+          <p style={{fontSize:11,color:"var(--success)",fontWeight:500}}>
+            CC Switch 已同步：API Key / BaseURL / 模型已自动读取。
+          </p>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:10}}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{
+              padding:"5px 14px", fontSize:11, borderRadius:6,
+              display:"flex", alignItems:"center", gap:5,
+              background: tab === t.id ? "var(--accent-soft)" : "transparent",
+              border:`1px solid ${tab === t.id ? "var(--border-accent)" : "var(--border-subtle)"}`,
+              color: tab === t.id ? "var(--accent)" : "var(--text-muted)",
+              fontWeight: tab === t.id ? 600 : 400,
+              transition:"all .2s",
+            }}>
+            <Ic n={t.icon} size={11} sw={1.3}/>
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      {/* API config actions */}
+      <div style={{
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        gap:10, marginBottom:14, padding:"8px 10px",
+        background:"var(--bg-primary)", border:"1px solid var(--border-subtle)",
+        borderRadius:8,
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
+          <Ic n={tab==="chat"?"sparkle":tab==="img"?"image":"film"} size={11} color="var(--accent)" sw={1.3}/>
+          <span style={{fontSize:10,color:"var(--text-secondary)",whiteSpace:"nowrap"}}>
+            当前{tab==="chat"?"文本":tab==="img"?"图片":"视频"} API
+          </span>
+          <span style={{
+            fontSize:10,color:"var(--text-primary)",fontWeight:600,
+            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:180,
+          }}>
+            {getActiveApiMeta().provider?.name || getActiveApiMeta().providerId}
+          </span>
+          {apiActionMsg && (
+            <span style={{
+              fontSize:10,
+              color:apiActionMsg.ok?"var(--success)":"var(--danger)",
+              whiteSpace:"nowrap",
+            }}>{apiActionMsg.msg}</span>
+          )}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+          <button onClick={saveCurrentApi} style={apiBtnStyle("accent")}>
+            <Ic n="check" size={10} sw={1.5}/>保存当前 API
+          </button>
+          <button onClick={deleteCurrentApi} style={apiBtnStyle()}>
+            <Ic n="trash" size={10} sw={1.5}/>删除当前 API
+          </button>
+          <button onClick={clearAllApiInfo} style={apiBtnStyle("danger")}>
+            <Ic n="alert" size={10} sw={1.5}/>清空所有 API
+          </button>
+        </div>
+      </div>
+
+      <div style={{
+        display:"grid", gridTemplateColumns:"120px 1fr", gap:8, alignItems:"center",
+        marginBottom:14, padding:"8px 10px", background:"var(--bg-primary)",
+        border:"1px solid var(--border-subtle)", borderRadius:8,
+      }}>
+        <label style={{fontSize:10,color:"var(--text-secondary)",fontWeight:600}}>本地 API 代理</label>
+        <input type="text" value={cfg.apiProxyBase||""}
+          onChange={e=>onChange({...cfg,apiProxyBase:e.target.value})}
+          placeholder="例如 http://127.0.0.1:8787"
+          className="sai-inp"/>
+        <div></div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>onChange({...cfg,proxyAll:!cfg.proxyAll})}
+            style={{
+              display:"flex",alignItems:"center",gap:5,padding:"3px 10px",
+              background:cfg.proxyAll?"var(--accent-soft)":"transparent",
+              border:`1px solid ${cfg.proxyAll?"var(--border-accent)":"var(--border-subtle)"}`,
+              borderRadius:20,cursor:"pointer",transition:"all .15s",
+            }}>
+            <div style={{
+              width:28,height:14,borderRadius:7,position:"relative",
+              background:cfg.proxyAll?"var(--accent)":"rgba(255,255,255,0.08)",
+              transition:"background .2s",
+            }}>
+              <div style={{
+                width:10,height:10,borderRadius:"50%",background:"#fff",
+                position:"absolute",top:2,
+                left:cfg.proxyAll?16:2,transition:"left .2s",
+              }}/>
+            </div>
+            <span style={{fontSize:9,color:cfg.proxyAll?"var(--accent)":"var(--text-muted)",fontWeight:500}}>
+              全部走代理
+            </span>
+          </button>
+          <p style={{fontSize:9,color:"var(--text-muted)",lineHeight:1.5,margin:0}}>
+            {cfg.proxyAll ? "所有 API 请求经本地代理转发" : "仅 CORS 失败的请求走代理"}
+          </p>
+        </div>
+      </div>
+
+      {/* ── 对话模型 ── */}
+      {tab === "chat" && (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {CHAT_PROVIDERS.map(p => {
+            const pk = cfg.providerKeys?.chat?.[p.id] || {key:"",base:p.defaultUrl||""};
+            const isActive = cfg.chatProvider === p.id;
+            const models = fetchedModels[p.id] || [];
+            return (
+              <div key={p.id} style={{
+                padding:"10px 14px", borderRadius:8,
+                background: isActive ? "var(--bg-surface)" : "var(--bg-primary)",
+                border:`1px solid ${isActive ? "var(--border-accent)" : "var(--border-subtle)"}`,
+                transition:"all .2s", cursor:"pointer",
+              }} onClick={()=>{if(!isActive)switchProvider("chat",p.id);}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <Ic n="sparkle" size={11} color={isActive?"var(--accent)":"var(--text-muted)"} sw={1.3}/>
+                    <span style={{fontSize:11,fontWeight:600,color:isActive?"var(--text-primary)":"var(--text-secondary)"}}>{p.name}</span>
+                    {isActive && <span style={{padding:"1px 6px",background:"var(--accent-soft)",borderRadius:10,fontSize:8,color:"var(--accent)",fontWeight:600}}>当前</span>}
+                    <span style={{fontSize:8,color:"var(--text-ghost)",fontFamily:"var(--font-mono)"}}>{p.format}</span>
+                    {models.length>0 && <span style={{fontSize:8,color:"var(--success)"}}>{models.length}模型</span>}
+                  </div>
+                </div>
+                {isActive && (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}} onClick={e=>e.stopPropagation()}>
+                    <div>
+                      <label style={lbl}>API Key</label>
+                      <input type="password" value={pk.key} placeholder="sk-..."
+                        autoComplete="off" spellCheck={false}
+                        className={pk.key?"sai-inp":"sai-inp sai-inp-empty"}
+                        onChange={e=>updateProviderKey("chat",p.id,"key",e.target.value)}/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Base URL</label>
+                      <input type="text" value={pk.base} placeholder={p.defaultUrl||"https://api.example.com"}
+                        autoComplete="off" spellCheck={false}
+                        className="sai-inp"
+                        onChange={e=>updateProviderKey("chat",p.id,"base",e.target.value)}/>
+                    </div>
+                    {p.id==="chat"||true && (
+                      <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:6}}>
+                        <label style={{...lbl,marginBottom:0}}>格式</label>
+                        {["anthropic","openai","gemini"].map(f=>(
+                          <button key={f} onClick={()=>{const c={...cfg,chatFormat:f,chatProvider:p.id};onChange(c);}}
+                            style={{padding:"2px 10px",fontSize:9,borderRadius:4,
+                              background:cfg.chatFormat===f&&isActive?"var(--accent-soft)":"transparent",
+                              border:`1px solid ${cfg.chatFormat===f&&isActive?"var(--border-accent)":"var(--border-subtle)"}`,
+                              color:cfg.chatFormat===f&&isActive?"var(--accent)":"var(--text-muted)",
+                              fontWeight:cfg.chatFormat===f&&isActive?600:400,transition:"all .15s",cursor:"pointer",
+                            }}>{f==="anthropic"?"Anthropic":f==="gemini"?"Gemini":"OpenAI"}</button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Model chips for active provider */}
+                    {models.length>0 && (
+                      <div style={{gridColumn:"1/-1",display:"flex",flexWrap:"wrap",gap:3,marginTop:4}}>
+                        {models.slice(0,10).map(m=>(
+                          <button key={m.id} onClick={()=>{const c={...cfg,chatModel:m.id,chatProvider:p.id};if(p.format)c.chatFormat=p.format;onChange(c);}}
+                            style={{padding:"2px 6px",fontSize:8,borderRadius:3,fontFamily:"var(--font-mono)",
+                              background:cfg.chatModel===m.id&&isActive?"var(--accent-soft)":"rgba(255,255,255,0.02)",
+                              border:`1px solid ${cfg.chatModel===m.id&&isActive?"var(--border-accent)":"var(--border-subtle)"}`,
+                              color:cfg.chatModel===m.id&&isActive?"var(--accent)":"var(--text-secondary)",
+                              cursor:"pointer",transition:"all .1s",
+                            }}>{m.id}</button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{gridColumn:"1/-1"}}>
+                      <label style={lbl}>模型 ID</label>
+                      <input type="text" value={cfg.chatModel} onChange={e=>onChange({...cfg,chatModel:e.target.value})}
+                        placeholder="如 deepseek-chat, gpt-4o..." style={inpBase}/>
+                    </div>
+                    <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:8}}>
+                      <button onClick={async()=>{
+                        setTestResult({ok:null,msg:"测试中…",track:"chat",providerId:p.id});
+                        const r = await testConnection("chat",p.id);
+                        setTestResult({...r,track:"chat",providerId:p.id});
+                      }}
+                        style={{padding:"4px 12px",fontSize:9,borderRadius:4,
+                          background:"rgba(255,255,255,0.04)",border:"1px solid var(--border-subtle)",
+                          color:"var(--text-secondary)",cursor:"pointer",transition:"all .15s",
+                        }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border-accent)";e.currentTarget.style.color="var(--accent)";}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border-subtle)";e.currentTarget.style.color="var(--text-secondary)";}}>
+                        测试连接
+                      </button>
+                      {testResult?.track==="chat"&&testResult?.providerId===p.id && (
+                        <span style={{fontSize:9,color:testResult.ok===true?"var(--success)":testResult.ok===false?"var(--danger)":"var(--text-muted)"}}>
+                          {testResult.msg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── 图像模型 ── */}
+      {tab === "img" && (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {IMG_PROVIDERS.map(p => {
+            const pk = cfg.providerKeys?.img?.[p.id] || {key:"",base:p.defaultUrl||""};
+            const isActive = cfg.imgProvider === p.id;
+            const models = fetchedModels[p.id] || [];
+            return (
+              <div key={p.id} style={{
+                padding:"10px 14px", borderRadius:8,
+                background: isActive ? "var(--bg-surface)" : "var(--bg-primary)",
+                border:`1px solid ${isActive ? "var(--border-accent)" : "var(--border-subtle)"}`,
+                transition:"all .2s", cursor:"pointer",
+              }} onClick={()=>{if(!isActive)switchProvider("img",p.id);}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <Ic n="image" size={11} color={isActive?"var(--accent)":"var(--text-muted)"} sw={1.3}/>
+                    <span style={{fontSize:11,fontWeight:600,color:isActive?"var(--text-primary)":"var(--text-secondary)"}}>{p.name}</span>
+                    {isActive && <span style={{padding:"1px 6px",background:"var(--accent-soft)",borderRadius:10,fontSize:8,color:"var(--accent)",fontWeight:600}}>当前</span>}
+                    {p.noKey && <span style={{fontSize:8,color:"var(--success)"}}>免费</span>}
+                    {models.length>0 && <span style={{fontSize:8,color:"var(--success)"}}>{models.length}模型</span>}
+                  </div>
+                </div>
+                {isActive && !p.noKey && (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}} onClick={e=>e.stopPropagation()}>
+                    <div>
+                      <label style={lbl}>API Key</label>
+                      <input type="password" value={pk.key} placeholder="sk-..."
+                        autoComplete="off" spellCheck={false}
+                        className={pk.key?"sai-inp":"sai-inp sai-inp-empty"}
+                        onChange={e=>updateProviderKey("img",p.id,"key",e.target.value)}/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Base URL</label>
+                      <input type="text" value={pk.base} placeholder={p.defaultUrl||"https://api.example.com"}
+                        autoComplete="off" spellCheck={false}
+                        className="sai-inp"
+                        onChange={e=>updateProviderKey("img",p.id,"base",e.target.value)}/>
+                    </div>
+                    {models.length>0 && (
+                      <div style={{gridColumn:"1/-1",display:"flex",flexWrap:"wrap",gap:3,marginTop:4}}>
+                        {models.slice(0,10).map(m=>(
+                          <button key={m.id} onClick={()=>{const c={...cfg,imgModel:m.id,imgProvider:p.id};onChange(c);}}
+                            style={{padding:"2px 6px",fontSize:8,borderRadius:3,fontFamily:"var(--font-mono)",
+                              background:cfg.imgModel===m.id&&isActive?"var(--accent-soft)":"rgba(255,255,255,0.02)",
+                              border:`1px solid ${cfg.imgModel===m.id&&isActive?"var(--border-accent)":"var(--border-subtle)"}`,
+                              color:cfg.imgModel===m.id&&isActive?"var(--accent)":"var(--text-secondary)",
+                              cursor:"pointer",transition:"all .1s",
+                            }}>{m.id}</button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{gridColumn:"1/-1"}}>
+                      <label style={lbl}>模型 ID</label>
+                      <input type="text" value={cfg.imgModel} onChange={e=>onChange({...cfg,imgModel:e.target.value,imgProvider:p.id})}
+                        placeholder={p.id==="gemini_img" ? "gemini-2.5-flash-image / gemini-3.1-flash-image" : (p.defaultModel || "填写模型 ID")} style={inpBase}/>
+                      {p.id==="gemini_img" && (
+                        <p style={{fontSize:9,color:"var(--text-muted)",marginTop:4,lineHeight:1.5}}>
+                          Gemini 图片接口会使用 Google 原生 generateContent；Base URL 请保持 https://generativelanguage.googleapis.com，模型建议 gemini-2.5-flash-image 或 gemini-3.1-flash-image。
+                        </p>
+                      )}
+                    </div>
+                    <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:8}}>
+                      <button onClick={async()=>{
+                        setTestResult({ok:null,msg:"测试中…",track:"img",providerId:p.id});
+                        const r = await testConnection("img",p.id);
+                        setTestResult({...r,track:"img",providerId:p.id});
+                      }}
+                        style={{padding:"4px 12px",fontSize:9,borderRadius:4,
+                          background:"rgba(255,255,255,0.04)",border:"1px solid var(--border-subtle)",
+                          color:"var(--text-secondary)",cursor:"pointer",transition:"all .15s",
+                        }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border-accent)";e.currentTarget.style.color="var(--accent)";}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border-subtle)";e.currentTarget.style.color="var(--text-secondary)";}}>
+                        测试连接
+                      </button>
+                      {testResult?.track==="img"&&testResult?.providerId===p.id && (
+                        <span style={{fontSize:9,color:testResult.ok===true?"var(--success)":testResult.ok===false?"var(--danger)":"var(--text-muted)"}}>
+                          {testResult.msg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {isActive && p.noKey && (
+                  <p style={{fontSize:10,color:"var(--text-secondary)",lineHeight:1.7}}>
+                    免费图像生成，无需 API Key。在对话中描述内容即可生成。
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── 视频模型 ── */}
+      {tab === "vid" && (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {VID_PROVIDERS.map(p => {
+            const pk = cfg.providerKeys?.vid?.[p.id] || {key:"",base:p.defaultUrl||""};
+            const isActive = cfg.vidProvider === p.id;
+            const models = fetchedModels[p.id] || [];
+            return (
+              <div key={p.id} style={{
+                padding:"10px 14px", borderRadius:8,
+                background: isActive ? "var(--bg-surface)" : "var(--bg-primary)",
+                border:`1px solid ${isActive ? "var(--border-accent)" : "var(--border-subtle)"}`,
+                transition:"all .2s", cursor:"pointer",
+              }} onClick={()=>{if(!isActive)switchProvider("vid",p.id);}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <Ic n="film" size={11} color={isActive?"var(--accent)":"var(--text-muted)"} sw={1.3}/>
+                    <span style={{fontSize:11,fontWeight:600,color:isActive?"var(--text-primary)":"var(--text-secondary)"}}>{p.name}</span>
+                    {isActive && <span style={{padding:"1px 6px",background:"var(--accent-soft)",borderRadius:10,fontSize:8,color:"var(--accent)",fontWeight:600}}>当前</span>}
+                    {models.length>0 && <span style={{fontSize:8,color:"var(--success)"}}>{models.length}模型</span>}
+                  </div>
+                </div>
+                {isActive && (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}} onClick={e=>e.stopPropagation()}>
+                    <div>
+                      <label style={lbl}>API Key</label>
+                      <input type="password" value={pk.key} placeholder="rwy-..."
+                        autoComplete="off" spellCheck={false}
+                        className={pk.key?"sai-inp":"sai-inp sai-inp-empty"}
+                        onChange={e=>updateProviderKey("vid",p.id,"key",e.target.value)}/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Base URL</label>
+                      <input type="text" value={pk.base} placeholder={p.defaultUrl||"https://api.example.com"}
+                        autoComplete="off" spellCheck={false}
+                        className="sai-inp"
+                        onChange={e=>updateProviderKey("vid",p.id,"base",e.target.value)}/>
+                    </div>
+                    {models.length>0 && (
+                      <div style={{gridColumn:"1/-1",display:"flex",flexWrap:"wrap",gap:3,marginTop:4}}>
+                        {models.slice(0,10).map(m=>(
+                          <button key={m.id} onClick={()=>{const c={...cfg,vidModel:m.id,vidProvider:p.id};onChange(c);}}
+                            style={{padding:"2px 6px",fontSize:8,borderRadius:3,fontFamily:"var(--font-mono)",
+                              background:cfg.vidModel===m.id&&isActive?"var(--accent-soft)":"rgba(255,255,255,0.02)",
+                              border:`1px solid ${cfg.vidModel===m.id&&isActive?"var(--border-accent)":"var(--border-subtle)"}`,
+                              color:cfg.vidModel===m.id&&isActive?"var(--accent)":"var(--text-secondary)",
+                              cursor:"pointer",transition:"all .1s",
+                            }}>{m.id}</button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{gridColumn:"1/-1"}}>
+                      <label style={lbl}>模型 ID</label>
+                      <input type="text" value={cfg.vidModel} onChange={e=>onChange({...cfg,vidModel:e.target.value,vidProvider:p.id})}
+                        placeholder="如 gen-3, kling-v1..." style={inpBase}/>
+                    </div>
+                    <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:8}}>
+                      <button onClick={async()=>{
+                        setTestResult({ok:null,msg:"测试中…",track:"vid",providerId:p.id});
+                        const r = await testConnection("vid",p.id);
+                        setTestResult({...r,track:"vid",providerId:p.id});
+                      }}
+                        style={{padding:"4px 12px",fontSize:9,borderRadius:4,
+                          background:"rgba(255,255,255,0.04)",border:"1px solid var(--border-subtle)",
+                          color:"var(--text-secondary)",cursor:"pointer",transition:"all .15s",
+                        }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border-accent)";e.currentTarget.style.color="var(--accent)";}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border-subtle)";e.currentTarget.style.color="var(--text-secondary)";}}>
+                        测试连接
+                      </button>
+                      {testResult?.track==="vid"&&testResult?.providerId===p.id && (
+                        <span style={{fontSize:9,color:testResult.ok===true?"var(--success)":testResult.ok===false?"var(--danger)":"var(--text-muted)"}}>
+                          {testResult.msg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Component: Track Dropdown (Header)
+// ═══════════════════════════════════════════════════════════════
+function TrackDropdown({ track, cfg, fetchedModels, modelsLoading, onSelect, onClose, onOpenSettings }) {
+  const [selProv, setSelProv] = useState(
+    track==="chat" ? cfg.chatProvider : track==="img" ? cfg.imgProvider : cfg.vidProvider
+  );
+  const providers = track==="chat" ? CHAT_PROVIDERS : track==="img" ? IMG_PROVIDERS : VID_PROVIDERS;
+  const curModel = track==="chat" ? cfg.chatModel : track==="img" ? cfg.imgModel : cfg.vidModel;
+  const models = fetchedModels[selProv] || [];
+  const prov = providers.find(p=>p.id===selProv);
+
+  return (
+    <div style={{
+      position:"absolute", top:"100%", right:0, marginTop:4, zIndex:100,
+      width:280, background:"var(--bg-elevated)", border:"1px solid var(--border-default)",
+      borderRadius:8, boxShadow:"0 8px 32px rgba(0,0,0,0.4)", overflow:"hidden",
+      animation:"fadeUp .2s var(--ease-out)",
+    }}>
+      {/* Provider tabs */}
+      <div style={{display:"flex",gap:0,borderBottom:"1px solid var(--border-subtle)",overflowX:"auto"}}>
+        {providers.filter(p=>!p.noKey || track!=="img").map(p=>(
+          <button key={p.id} onClick={()=>setSelProv(p.id)}
+            style={{
+              flex:"0 0 auto", padding:"6px 10px", fontSize:9, fontWeight:500,
+              background: selProv===p.id ? "var(--accent-soft)" : "transparent",
+              color: selProv===p.id ? "var(--accent)" : "var(--text-muted)",
+              border:"none", borderBottom: selProv===p.id ? "2px solid var(--accent)" : "2px solid transparent",
+              transition:"all .15s", whiteSpace:"nowrap",
+            }}
+            onMouseEnter={e=>{if(selProv!==p.id)e.currentTarget.style.color="var(--text-secondary)";}}
+            onMouseLeave={e=>{if(selProv!==p.id)e.currentTarget.style.color="var(--text-muted)";}}
+          >{p.name.split("(")[0].trim()}</button>
+        ))}
+      </div>
+      {/* Provider info */}
+      {prov && (
+        <div style={{padding:"8px 12px 4px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:9,color:"var(--text-ghost)",letterSpacing:"0.04em"}}>
+            {prov.defaultUrl ? prov.defaultUrl.replace(/https?:\/\//,"").slice(0,30) : "无需 URL"}
+          </span>
+          {modelsLoading[selProv] && (
+            <Ic n="refresh" size={9} sw={1.4} className="spin-anim"/>
+          )}
+        </div>
+      )}
+      {/* Models list */}
+      <div style={{maxHeight:240,overflowY:"auto",padding:"4px 6px 8px"}}>
+        {models.length > 0 ? models.map(m=>(
+          <button key={m.id} onClick={()=>onSelect(selProv, m.id)}
+            style={{
+              display:"block", width:"100%", textAlign:"left", padding:"5px 8px",
+              fontSize:10, fontFamily:"var(--font-mono)",
+              background: curModel===m.id ? "var(--accent-soft)" : "transparent",
+              color: curModel===m.id ? "var(--accent)" : "var(--text-secondary)",
+              border: curModel===m.id ? "1px solid var(--border-accent)" : "1px solid transparent",
+              borderRadius:4, transition:"all .1s", cursor:"pointer",
+            }}
+            onMouseEnter={e=>{if(curModel!==m.id){e.currentTarget.style.background="var(--bg-hover)";e.currentTarget.style.color="var(--text-primary)";}}}
+            onMouseLeave={e=>{if(curModel!==m.id){e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--text-secondary)";}}}
+          >{m.id}</button>
+        )) : (
+          <div style={{padding:"12px 8px",textAlign:"center"}}>
+            <p style={{fontSize:10,color:"var(--text-muted)"}}>
+              请先在设置中填写 API Key
+            </p>
+            <button onClick={()=>{onClose();onOpenSettings&&onOpenSettings();}}
+              style={{
+                marginTop:6, padding:"3px 10px", fontSize:9, borderRadius:4,
+                background:"var(--accent-soft)", border:"1px solid var(--border-accent)",
+                color:"var(--accent)", fontWeight:500, cursor:"pointer",
+              }}>去设置</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Main App
+// ═══════════════════════════════════════════════════════════════
+let cardId = 0;
+
+function App() {
+  const init = loadCfg();
+  const fromCC = !!window.claudeConfig;
+
+  const [cfg, setCfg] = useState(()=>{
+    // 构建 per-provider 存储，兼容旧配置
+    const initPK = init.providerKeys || {};
+    const mkP = (track, providers, defaults) => {
+      const out = initPK[track] || {};
+      providers.forEach(p => {
+        if (!out[p.id]) out[p.id] = { key:"", base:p.defaultUrl||"" };
+      });
+      // 从旧配置迁移
+      if (defaults) Object.entries(defaults).forEach(([k,v]) => {
+        if (v && !out[k]?.key) out[k] = { key:v.key||"", base:v.base||"" };
+      });
+      return out;
+    };
+    const chatPK = mkP("chat", CHAT_PROVIDERS, {
+      claude:   { key:init.claudeKey||init.chatKey||"", base:init.claudeBase||init.chatBase||"https://api.anthropic.com" },
+      deepseek: { key:init.deepseekKey||"", base:init.deepseekUrl||"https://api.deepseek.com" },
+      kimi:     { key:init.kimiKey||"", base:init.kimiUrl||"https://api.moonshot.cn" },
+    });
+    const imgPK = mkP("img", IMG_PROVIDERS, {
+      dalle: { key:init.dalleKey||init.imgKey||init.nbKey||init.im2Key||init.relayKey||"",
+               base:init.dalleUrl||init.imgBase||init.nbUrl||init.im2Url||init.relayUrl||"https://api.openai.com" },
+    });
+    const vidPK = mkP("vid", VID_PROVIDERS, {
+      runway: { key:init.runwayKey||init.vidKey||"", base:init.runwayUrl||init.vidBase||"https://api.dev.runwayml.com" },
+    });
+    const cp = init.chatProvider || "claude";
+    const ip = init.imgProvider || "dalle";
+    const vp = init.vidProvider || "jimeng_vid";
+    return {
+      chatProvider: cp, chatModel: init.chatModel||init.model||init.claudeModel||getProviderDefaultModel("chat", cp)||"claude-sonnet-4-6",
+      chatFormat: init.chatFormat || (CHAT_PROVIDERS.find(p=>p.id===cp)?.format)||"anthropic",
+      chatKey: chatPK[cp]?.key||"", chatBase: chatPK[cp]?.base||"",
+      imgProvider: ip, imgModel: init.imgModel||init.nbModel||init.im2Model||init.relayModel||getProviderDefaultModel("img", ip)||"",
+      imgKey: imgPK[ip]?.key||"", imgBase: imgPK[ip]?.base||"",
+      vidProvider: vp, vidModel: init.vidModel||getProviderDefaultModel("vid", vp)||"gen4_turbo",
+      vidKey: vidPK[vp]?.key||"", vidBase: vidPK[vp]?.base||"",
+      thinkingEnabled: !!init.thinkingEnabled,
+      thinkingEffort: init.thinkingEffort || "medium",
+      thinkingShowSummary: init.thinkingShowSummary !== false,
+      apiProxyBase: init.apiProxyBase || "",
+      proxyAll: !!init.proxyAll,
+      providerKeys: { chat:chatPK, img:imgPK, vid:vidPK },
+    };
+  });
+  const updateCfg = c => { setCfg(c); saveCfg(c); };
+
+  // 更新某个 provider 的凭证（同时同步 flat keys）
+  const updateProviderKey = (track, providerId, field, value) => {
+    const c = {...cfg};
+    const pk = {...c.providerKeys};
+    const trackPk = {...pk[track]};
+    trackPk[providerId] = {...(trackPk[providerId]||{key:"",base:""}), [field]:value};
+    pk[track] = trackPk;
+    c.providerKeys = pk;
+    // sync flat keys if this is the active provider
+    if (track==="chat" && providerId===c.chatProvider) {
+      c.chatKey = trackPk[providerId].key;
+      c.chatBase = trackPk[providerId].base;
+    }
+    if (track==="img" && providerId===c.imgProvider) {
+      c.imgKey = trackPk[providerId].key;
+      c.imgBase = trackPk[providerId].base;
+    }
+    if (track==="vid" && providerId===c.vidProvider) {
+      c.vidKey = trackPk[providerId].key;
+      c.vidBase = trackPk[providerId].base;
+    }
+    updateCfg(c);
+  };
+
+  // 切换 active provider 时同步 flat keys
+  const switchProvider = (track, providerId) => {
+    const c = {...cfg};
+    const p = getProviderById(track, providerId);
+    if (track==="chat") {
+      c.chatProvider = providerId;
+      c.chatFormat = p?.format || "openai";
+      c.chatKey = c.providerKeys?.chat?.[providerId]?.key || "";
+      c.chatBase = c.providerKeys?.chat?.[providerId]?.base || p?.defaultUrl || "";
+      const ms = fetchedModels[providerId];
+      c.chatModel = ms?.length>0 ? ms[0].id : (p?.defaultModel || c.chatModel || "");
+    } else if (track==="img") {
+      c.imgProvider = providerId;
+      c.imgKey = c.providerKeys?.img?.[providerId]?.key || "";
+      c.imgBase = c.providerKeys?.img?.[providerId]?.base || p?.defaultUrl || "";
+      const ms = fetchedModels[providerId];
+      c.imgModel = ms?.length>0 ? ms[0].id : (p?.defaultModel || "");
+    } else if (track==="vid") {
+      c.vidProvider = providerId;
+      c.vidKey = c.providerKeys?.vid?.[providerId]?.key || "";
+      c.vidBase = c.providerKeys?.vid?.[providerId]?.base || p?.defaultUrl || "";
+      const ms = fetchedModels[providerId];
+      c.vidModel = ms?.length>0 ? ms[0].id : (p?.defaultModel || "");
+    }
+    updateCfg(c);
+  };
+
+  // 测试 API 连通性
+  const testConnection = async (track, providerId) => {
+    const pk = cfg.providerKeys?.[track]?.[providerId];
+    if (!pk) return { ok:false, msg:"未配置" };
+    if (track === "chat") {
+      const prov = CHAT_PROVIDERS.find(p=>p.id===providerId);
+      const base = pk.base || prov?.defaultUrl || "";
+      const fmt = prov?.format || (providerId === "claude" ? "anthropic" : "openai");
+      if (!pk.key) return { ok:false, msg:"未填写 API Key" };
+      if (!base) return { ok:false, msg:"未填写 Base URL" };
+      try {
+        if (fmt === "anthropic") {
+          const r = await apiFetch(cleanBase(base)+"/v1/messages", {
+            method:"POST",
+            signal: AbortSignal.timeout(12000),
+            headers:{
+              "Content-Type":"application/json",
+              "x-api-key":pk.key.trim(),
+              "anthropic-version":"2023-06-01",
+              "anthropic-dangerous-direct-browser-access":"true",
+            },
+            body:JSON.stringify({ model:cfg.chatModel || "claude-sonnet-4-5", max_tokens:8, messages:[{role:"user",content:"hi"}] }),
+          });
+          if (r.ok) return { ok:true, msg:"连接成功" };
+          const e = await r.json().catch(()=>({}));
+          return { ok:false, msg:`${r.status}: ${e.error?.message || e.message || "未知错误"}` };
+        }
+        const r = await apiFetch(getOpenAIModelsURL(base), {
+          method:"GET",
+          signal: AbortSignal.timeout(12000),
+          headers:{ "Authorization":`Bearer ${pk.key.trim()}` },
+        });
+        if (r.ok) return { ok:true, msg:"连接成功" };
+        const e = await r.json().catch(()=>({}));
+        return { ok:false, msg:`${r.status}: ${e.error?.message || e.message || "未知错误"}` };
+      } catch(e) { return { ok:false, msg:"网络错误: "+e.message }; }
+    }
+
+    const prov = (track==="img" ? IMG_PROVIDERS : VID_PROVIDERS).find(p=>p.id===providerId);
+    if (prov?.noKey) return { ok:true, msg:"无需 Key" };
+    const base = pk.base || prov?.defaultUrl || "";
+    if (!pk.key) return { ok:false, msg:"未填写 API Key" };
+    if (!base) return { ok:false, msg:"未填写 Base URL" };
+
+    // 图片轨道可以用 /v1/models 测连通；视频轨道很多服务商没有 models 接口，因此只做轻量认证/可达性提示。
+    if (track === "vid" && providerId === "runway") {
+      return { ok:true, msg:"配置已保存；Runway 将在生成时创建任务并轮询结果" };
+    }
+    try {
+      const r = await apiFetch(getOpenAIModelsURL(base), {
+        method:"GET",
+        signal: AbortSignal.timeout(12000),
+        headers:{ "Authorization":`Bearer ${pk.key.trim()}` },
+      });
+      if (r.ok) return { ok:true, msg:"连接成功" };
+      const e = await r.json().catch(()=>({}));
+      return { ok:false, msg:`${r.status}: ${e.error?.message || e.message || "未知错误"}` };
+    } catch(e) { return { ok:false, msg:"网络错误: "+e.message }; }
+  };
+
+  const [msgs,   setMsgs]     = useState([{ id:"welcome",role:"assistant",
+    content:"你好！我是 Studio AI 创意设计助理。告诉我你想创作什么，我会帮你生成高质量的设计作品。", isWelcome:true }]);
+  const [input,  setInput]    = useState("");
+  const [busy,   setBusy]     = useState(false);
+  const [canvas, setCanvas]   = useState([]);
+  const [selId,  setSelId]    = useState(null);
+  const [sets,   setSets]     = useState(false);
+  const [openTrack, setOpenTrack] = useState(null); // null | "chat" | "img" | "vid"
+  const [stylePreset, setStylePreset] = useState("");
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [fetchedModels, setFetchedModels] = useState({});
+  const [modelsLoading, setModelsLoading] = useState({});
+  const endRef = useRef(null);
+
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[msgs]);
+
+  const selItem = canvas.find(c=>c.id===selId)||null;
+  const chatModel = cfg.chatModel || "claude-sonnet-4-6";
+
+  // 自动获取模型列表（仅当前激活的 provider）
+  const fetchAllModels = useCallback(async () => {
+    // Chat track
+    if (cfg.chatKey && cfg.chatBase) {
+      setModelsLoading(prev=>({...prev,[cfg.chatProvider]:true}));
+      const models = await fetchModelsFromProvider(cfg.chatKey, cfg.chatBase, cfg.chatFormat, cfg.chatProvider);
+      setFetchedModels(prev=>({...prev,[cfg.chatProvider]:models}));
+      setModelsLoading(prev=>({...prev,[cfg.chatProvider]:false}));
+    }
+    // Image track
+    if (cfg.imgKey && cfg.imgBase) {
+      setModelsLoading(prev=>({...prev,[cfg.imgProvider]:true}));
+      const models = await fetchModelsFromProvider(cfg.imgKey, cfg.imgBase, "openai", cfg.imgProvider);
+      setFetchedModels(prev=>({...prev,[cfg.imgProvider]:models}));
+      setModelsLoading(prev=>({...prev,[cfg.imgProvider]:false}));
+    }
+    // Video track
+    if (cfg.vidKey && cfg.vidBase) {
+      setModelsLoading(prev=>({...prev,[cfg.vidProvider]:true}));
+      const models = await fetchModelsFromProvider(cfg.vidKey, cfg.vidBase, "openai", cfg.vidProvider);
+      setFetchedModels(prev=>({...prev,[cfg.vidProvider]:models}));
+      setModelsLoading(prev=>({...prev,[cfg.vidProvider]:false}));
+    }
+  }, [cfg]);
+
+  // debounce 自动拉取
+  useEffect(()=>{
+    const t = setTimeout(fetchAllModels, 800);
+    return ()=>clearTimeout(t);
+  }, [cfg.chatProvider,cfg.chatKey,cfg.chatBase,cfg.imgProvider,cfg.imgKey,cfg.imgBase,cfg.vidProvider,cfg.vidKey,cfg.vidBase]);
+
+  // 拉取完成后自动选择第一个模型（如果当前模型不在列表中）
+  useEffect(()=>{
+    const u = {};
+    const chatMs = fetchedModels[cfg.chatProvider];
+    if (chatMs?.length > 0 && !chatMs.some(m => m.id === cfg.chatModel)) {
+      u.chatModel = chatMs[0].id;
+    }
+    const imgMs = fetchedModels[cfg.imgProvider];
+    if (imgMs?.length > 0 && !imgMs.some(m => m.id === cfg.imgModel)) {
+      u.imgModel = imgMs[0].id;
+    }
+    const vidMs = fetchedModels[cfg.vidProvider];
+    if (vidMs?.length > 0 && cfg.vidModel && !vidMs.some(m => m.id === cfg.vidModel)) {
+      u.vidModel = vidMs[0].id;
+    }
+    if (Object.keys(u).length > 0) {
+      const c = {...cfg, ...u};
+      setCfg(c); saveCfg(c);
+    }
+  }, [fetchedModels]);
+
+  // 合并模型列表（按轨道分组，附带 provider 元数据）
+  const chatModelOptions = (() => {
+    const groups = [];
+    CHAT_PROVIDERS.forEach(p => {
+      if (p.id === "custom_chat") return;
+      const models = fetchedModels[p.id];
+      if (models?.length > 0) {
+        groups.push({ label:p.name, providerId:p.id, format:p.format, models:models.map(m=>({id:m.id,label:m.id})) });
+      }
+    });
+    groups.push({ label:"自定义", providerId:"custom_chat", models:[{id:"__custom__",label:"手动输入模型 ID"}] });
+    return groups;
+  })();
+
+  const imgModelOptions = (() => {
+    const groups = [];
+    IMG_PROVIDERS.filter(p=>!p.noKey && p.id!=="custom_img").forEach(p => {
+      const models = fetchedModels[p.id];
+      if (models?.length > 0) {
+        groups.push({ label:p.name, providerId:p.id, models:models.map(m=>({id:m.id,label:m.id})) });
+      }
+    });
+    groups.push({ label:"自定义", providerId:"custom_img", models:[{id:"__custom_img",label:"手动输入模型 ID"}] });
+    return groups;
+  })();
+
+  const vidModelOptions = (() => {
+    const groups = [];
+    VID_PROVIDERS.filter(p=>p.id!=="custom_vid").forEach(p => {
+      const models = fetchedModels[p.id];
+      if (models?.length > 0) {
+        groups.push({ label:p.name, providerId:p.id, models:models.map(m=>({id:m.id,label:m.id})) });
+      }
+    });
+    groups.push({ label:"自定义", providerId:"custom_vid", models:[{id:"__custom_vid",label:"手动输入模型 ID"}] });
+    return groups;
+  })();
+
+  const addMsg = m => setMsgs(p=>[...p,{id:Date.now()+Math.random(),...m}]);
+
+  const snapshotProvider = (type) => {
+    if (type === "video") return {
+      track:"vid",
+      provider:cfg.vidProvider || "runway",
+      protocol:getProviderById("vid", cfg.vidProvider)?.protocol,
+      key:cfg.vidKey,
+      base:cfg.vidBase,
+      model:cfg.vidModel,
+    };
+    return {
+      track:"img",
+      provider:cfg.imgProvider || "dalle",
+      protocol:getProviderById("img", cfg.imgProvider)?.protocol,
+      key:cfg.imgKey,
+      base:cfg.imgBase,
+      model:cfg.imgModel,
+    };
+  };
+
+  const normalizeTasks = (parsed) => {
+    const list = parsed?.tasks || parsed?.prompts || [];
+    return Array.isArray(list) ? list : [];
+  };
+
+  const runCanvasCard = async (card) => {
+    setCanvas(p=>p.map(c=>c.id===card.id?{...c,status:"loading",progress:card.progress||3,err:null}:c));
+    try {
+      const result = await runMediaTask(card, progress => {
+        setCanvas(p=>p.map(c=>c.id===card.id?{...c,progress}:c));
+      });
+      setCanvas(p=>p.map(c=>c.id===card.id?{...c,...result,status:"done",progress:100}:c));
+    } catch(e) {
+      setCanvas(p=>p.map(c=>c.id===card.id?{...c,status:"error",err:e.message,progress:0}:c));
+    }
+  };
+
+  const send = async () => {
+    if (!input.trim()||busy) return;
+    if (!cfg.chatKey) { setSets(true); addMsg({role:"assistant",isError:true,
+      content:"请先在设置中填写文本 API Key。"}); return; }
+    const text = input.trim();
+    setInput(""); setBusy(true);
+    addMsg({role:"user",content:text});
+
+    try {
+      const sys = buildSys(canvas, selItem, stylePreset, aspectRatio);
+      const chatCfg = {
+        key:cfg.chatKey,
+        base:cfg.chatBase,
+        model:chatModel,
+        chatFormat:cfg.chatFormat,
+        thinkingEnabled:cfg.thinkingEnabled,
+        thinkingEffort:cfg.thinkingEffort,
+        thinkingShowSummary:cfg.thinkingShowSummary,
+      };
+      const liveThinking = cfg.thinkingEnabled && /deepseek/i.test(String(cfg.chatBase || cfg.chatProvider || ""));
+      const liveMsgId = liveThinking ? Date.now()+Math.random() : null;
+      if (liveMsgId) {
+        setMsgs(p=>[...p,{id:liveMsgId, role:"assistant", content:"正在深度思考…", thinkingSummary:"等待 DeepSeek 返回 reasoning_content…", plan:[]}]);
+      }
+
+      const { parsed, raw, thinkingSummary } = await callChat(
+        [...msgs, {role:"user",content:text}], sys, chatCfg,
+        {
+          onThinking:(s)=>{
+            if (!liveMsgId) return;
+            setMsgs(p=>p.map(m=>m.id===liveMsgId?{...m,content:"正在深度思考…",thinkingSummary:s}:m));
+          },
+          onContent:(s)=>{
+            if (!liveMsgId) return;
+            setMsgs(p=>p.map(m=>m.id===liveMsgId?{...m,content:"正在整理最终计划…"}:m));
+          }
+        }
+      );
+
+      const styleSuffix = stylePreset ? (STYLE_PRESETS.find(s=>s.id===stylePreset)?.suffix||"") : "";
+      const tasks = normalizeTasks(parsed).map(t => ({...t}));
+      tasks.forEach(t => {
+        if (styleSuffix && t.prompt && (t.type || "image") === "image") t.prompt = t.prompt + styleSuffix;
+      });
+
+      const finalAssistantMsg = { role:"assistant",
+        content:parsed.reply||"正在处理…",
+        understanding:parsed.understanding,
+        plan:parsed.plan,
+        thinkingSummary,
+        labels:tasks.map(p=>p.label).filter(Boolean),
+        rawContent:raw
+      };
+      if (liveMsgId) setMsgs(p=>p.map(m=>m.id===liveMsgId?{...m,...finalAssistantMsg}:m));
+      else addMsg(finalAssistantMsg);
+
+      const genTriggers = /生图|生成|画一?张|create|generate|draw|image|video|生视频|出图|做图|搞一?张|来一?张|做一?个|动起来|动画|短片|镜头|运镜/;
+      const userIntent = genTriggers.test(text);
+      const isModify = /修改|调整|改|换|replace|modify|change|update/.test(text) && selItem;
+      const parsedIntent = parsed.intent || parsed.action || "chat";
+      const shouldRun = tasks.length>0 && parsedIntent !== "chat" && (userIntent || isModify || /generate|modify|video|image/i.test(parsedIntent));
+
+      if (shouldRun) {
+        const newCards = tasks.map(t => {
+          const type = t.type || (parsedIntent.includes("video") ? "video" : "image");
+          const sourceId = t.source_image_id || t.modifies_id || t.modifiesId || (selItem ? selItem.id : null);
+          const source = sourceId ? canvas.find(c => String(c.id) === String(sourceId)) : null;
+          return {
+            id:++cardId,
+            type,
+            label:t.label || (type==="video" ? "视频" : "图片"),
+            prompt:t.prompt,
+            negative:t.negative_prompt || t.negative,
+            providerSnapshot:snapshotProvider(type),
+            prov:type==="video" ? (cfg.vidProvider||"runway") : (cfg.imgProvider||"dalle"),
+            status:"loading",
+            progress:0,
+            imageUrl:null,
+            videoUrl:null,
+            taskId:null,
+            err:null,
+            sourceImageId:source?.id || null,
+            sourceImageUrl:source?.imageUrl || source?.url || null,
+            duration:Number(t.duration || 5),
+            ratio:t.ratio || aspectRatio,
+            modifiesId:source?.id || null,
+          };
+        });
+        setCanvas(prev=>[...newCards,...prev]);
+        newCards.forEach(async (card,i)=>{
+          await sleep(i*350);
+          runCanvasCard(card);
+        });
+      }
+    } catch(e) { addMsg({role:"assistant",isError:true,content:e.message}); }
+    setBusy(false);
+  };
+
+  const regen = useCallback((item)=>{
+    const card = {
+      ...item,
+      providerSnapshot:item.providerSnapshot || snapshotProvider(item.type || "image"),
+      status:"loading",
+      progress:0,
+      imageUrl:null,
+      videoUrl:null,
+      err:null,
+    };
+    setCanvas(p=>p.map(c=>c.id===item.id?card:c));
+    runCanvasCard(card);
+  },[cfg, aspectRatio, canvas]);
+
+  const modItem = useCallback((item)=>{ setSelId(item.id); setInput("修改这张图："); },[]);
+  const delItem = useCallback((id)=>{ setCanvas(p=>p.filter(c=>c.id!==id)); if(selId===id)setSelId(null); },[selId]);
+  const resetChat = ()=>setMsgs([{id:"welcome",role:"assistant",content:"对话已重置，画布内容保留。继续告诉我你想创作什么。",isWelcome:true}]);
+  const quickIdea = (text)=>{ setInput(text); };
+
+  return (
+    <div className="app-enter" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg-primary)"}}>
+
+      {/* ── Header ── */}
+      <header style={{
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)",
+        background:"var(--bg-primary)", flexShrink:0,
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{
+            width:30, height:30, borderRadius:9,
+            background:"var(--bg-surface)", border:"1px solid var(--border-accent)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            <Ic n="sparkle" size={14} color="var(--accent)" sw={1.3}/>
+          </div>
+          <span style={{
+            fontFamily:"var(--font-display)", fontSize:17, fontWeight:400,
+            letterSpacing:"-0.01em", fontStyle:"italic", color:"var(--text-primary)",
+          }}>Studio AI</span>
+          {fromCC && (
+            <div style={{
+              display:"flex", alignItems:"center", gap:4, padding:"3px 9px",
+              background:"var(--success-soft)", border:"1px solid rgba(93,174,139,0.15)",
+              borderRadius:20,
+            }}>
+              <Ic n="check" size={8} color="var(--success)" sw={1.8}/>
+              <span style={{fontSize:9,color:"var(--success)",fontWeight:500}}>CC Switch</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {/* ── 三轨道选择器 ── */}
+          {[
+            {track:"chat", icon:"sparkle", label:"文本",
+              provider: CHAT_PROVIDERS.find(p=>p.id===cfg.chatProvider),
+              model: chatModel, color:"var(--accent)"},
+            {track:"img", icon:"image", label:"图片",
+              provider: IMG_PROVIDERS.find(p=>p.id===cfg.imgProvider),
+              model: cfg.imgModel||cfg.imgProvider, color:"var(--text-muted)"},
+            {track:"vid", icon:"film", label:"视频",
+              provider: VID_PROVIDERS.find(p=>p.id===cfg.vidProvider),
+              model: cfg.vidModel||cfg.vidProvider, color:"var(--text-muted)"},
+          ].map(({track,icon,label,provider,model,color}) => (
+            <div key={track} style={{position:"relative"}}>
+              <button onClick={()=>setOpenTrack(openTrack===track?null:track)}
+                style={{
+                  display:"flex", alignItems:"center", gap:5,
+                  padding:"5px 10px", fontSize:10, borderRadius:6,
+                  background: openTrack===track ? "var(--accent-soft)" : "var(--bg-surface)",
+                  border:`1px solid ${openTrack===track ? "var(--border-accent)" : "var(--border-subtle)"}`,
+                  color: openTrack===track ? "var(--accent)" : color,
+                  fontWeight:500, transition:"all .15s", cursor:"pointer",
+                }}>
+                <Ic n={icon} size={10} sw={1.3}/>
+                <span>{label}</span>
+                <span style={{fontSize:8,color:"var(--text-ghost)",maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {provider?.name?.split(" ")[0]}/{model?.split("/").pop()?.slice(0,16)||"…"}
+                </span>
+                <Ic n={openTrack===track?"chevUp":"chevDown"} size={8} sw={1.5}/>
+              </button>
+              {/* Dropdown */}
+              {openTrack===track && <TrackDropdown track={track} cfg={cfg}
+                fetchedModels={fetchedModels} modelsLoading={modelsLoading}
+                onSelect={(provId,modelId)=>{
+                  // Single atomic update to avoid stale-state race
+                  const c = {...cfg};
+                  const p = (track==="chat"?CHAT_PROVIDERS:track==="img"?IMG_PROVIDERS:VID_PROVIDERS).find(x=>x.id===provId);
+                  if (track==="chat") {
+                    c.chatProvider = provId;
+                    c.chatKey = c.providerKeys?.chat?.[provId]?.key || "";
+                    c.chatBase = c.providerKeys?.chat?.[provId]?.base || p?.defaultUrl || "";
+                    if (p) c.chatFormat = p.format || "openai";
+                    if (modelId) c.chatModel = modelId;
+                    const ms = fetchedModels[provId];
+                    if (!modelId && ms?.length>0) c.chatModel = ms[0].id;
+                  } else if (track==="img") {
+                    c.imgProvider = provId;
+                    c.imgKey = c.providerKeys?.img?.[provId]?.key || "";
+                    c.imgBase = c.providerKeys?.img?.[provId]?.base || p?.defaultUrl || "";
+                    if (modelId) c.imgModel = modelId;
+                    const ms = fetchedModels[provId];
+                    if (!modelId && ms?.length>0) c.imgModel = ms[0].id;
+                  } else if (track==="vid") {
+                    c.vidProvider = provId;
+                    c.vidKey = c.providerKeys?.vid?.[provId]?.key || "";
+                    c.vidBase = c.providerKeys?.vid?.[provId]?.base || p?.defaultUrl || "";
+                    if (modelId) c.vidModel = modelId;
+                    const ms = fetchedModels[provId];
+                    if (!modelId && ms?.length>0) c.vidModel = ms[0].id;
+                  }
+                  updateCfg(c);
+                  setOpenTrack(null);
+                }}
+                onClose={()=>setOpenTrack(null)}
+                onOpenSettings={()=>setSets(true)}/>}
+            </div>
+          ))}
+
+          <div style={{width:1,height:16,background:"var(--border-subtle)",margin:"0 2px"}}/>
+
+          <button onClick={()=>setSets(!sets)}
+            style={{
+              display:"flex", alignItems:"center", gap:6,
+              padding:"6px 12px", fontSize:11, borderRadius:6,
+              background: sets ? "var(--accent-soft)" : "var(--bg-surface)",
+              border:`1px solid ${sets ? "var(--border-accent)" : "var(--border-default)"}`,
+              color: sets ? "var(--accent)" : "var(--text-muted)",
+              fontWeight:500, transition:"all .2s",
+            }}>
+            <Ic n="gear" size={12} sw={1.4}/>
+            设置
+            {!cfg.chatKey && (
+              <span style={{width:5,height:5,borderRadius:"50%",background:"var(--danger)",marginLeft:1}}/>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {sets && <SettingsPanel cfg={cfg} onChange={updateCfg} fromCC={fromCC}
+        fetchedModels={fetchedModels} modelsLoading={modelsLoading}
+        updateProviderKey={updateProviderKey} switchProvider={switchProvider}
+        testConnection={testConnection}
+        onFetchModels={async(id)=>{
+          let k="",u="";
+          // Look up per-provider credentials, not the active provider's flat keys
+          const chatProv = CHAT_PROVIDERS.find(p=>p.id===id);
+          const imgProv = IMG_PROVIDERS.find(p=>p.id===id);
+          const vidProv = VID_PROVIDERS.find(p=>p.id===id);
+          if (chatProv) { const pk = cfg.providerKeys?.chat?.[id]; k=pk?.key||""; u=pk?.base||chatProv.defaultUrl||""; }
+          else if (imgProv) { const pk = cfg.providerKeys?.img?.[id]; k=imgProv.noKey?"":(pk?.key||""); u=pk?.base||imgProv.defaultUrl||""; }
+          else if (vidProv) { const pk = cfg.providerKeys?.vid?.[id]; k=pk?.key||""; u=pk?.base||vidProv.defaultUrl||""; }
+          if ((!k && !imgProv?.noKey) || !u) return;
+          setModelsLoading(prev=>({...prev,[id]:true}));
+          const fmt = chatProv?.format || "openai";
+          const models = await fetchModelsFromProvider(k, u, fmt, id);
+          setFetchedModels(prev=>({...prev,[id]:models}));
+          setModelsLoading(prev=>({...prev,[id]:false}));
+        }}/>}
+
+      {/* ── Body ── */}
+      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+
+        {/* Chat Panel */}
+        <div style={{
+          width:380, maxWidth:"42vw", minWidth:340, display:"flex", flexDirection:"column",
+          borderRight:"1px solid var(--border-subtle)", flexShrink:0,
+          background:"var(--bg-primary)",
+        }}>
+
+          <div style={{flex:1,overflowY:"auto",padding:"18px 16px 0"}}>
+            {msgs.map(m=><MsgBubble key={m.id} msg={m} onQuickIdea={quickIdea}/>)}
+            {busy && (
+              <div style={{display:"flex",gap:10,marginBottom:16}}>
+                <div style={{
+                  width:28, height:28, borderRadius:8, flexShrink:0,
+                  background:"var(--bg-surface)", border:"1px solid var(--border-default)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>
+                  <Ic n="sparkle" size={13} color="var(--accent)" sw={1.3}/>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:5,paddingTop:8}}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{
+                      width:4, height:4, borderRadius:"50%",
+                      background:"var(--accent)",
+                      animation:`dot 1.2s ease-in-out ${i*.2}s infinite`,
+                    }}/>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={endRef}/>
+          </div>
+
+          {/* Input Area */}
+          <div style={{padding:"12px 14px 16px",flexShrink:0}}>
+            {selItem && (
+              <div style={{
+                display:"flex", alignItems:"center", gap:6, padding:"5px 10px",
+                marginBottom:8, background:"var(--accent-soft)",
+                border:"1px solid var(--border-accent)", borderRadius:6,
+              }}>
+                <Ic n="wand" size={10} color="var(--accent)" sw={1.3}/>
+                <span style={{
+                  fontSize:10, color:"var(--accent)", flex:1, fontWeight:500,
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                }}>
+                  修改模式：{selItem.label}
+                </span>
+                <button onClick={()=>setSelId(null)}
+                  style={{background:"none",border:"none",color:"var(--accent)",display:"flex",padding:0}}>
+                  <Ic n="close" size={10} sw={1.4}/>
+                </button>
+              </div>
+            )}
+
+            <div className="sai-input-wrap" style={{
+              background:"var(--bg-surface)", borderRadius:12,
+            }}>
+
+              {/* 风格预设：可展开，不再挤在一行里 */}
+              <div style={{padding:"8px 10px 0"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                  <button onClick={()=>setStyleOpen(!styleOpen)}
+                    style={{
+                      display:"flex",alignItems:"center",gap:5,padding:"3px 8px",
+                      background:stylePreset?"var(--accent-soft)":"transparent",
+                      border:`1px solid ${stylePreset?"var(--border-accent)":"var(--border-subtle)"}`,
+                      borderRadius:20,color:stylePreset?"var(--accent)":"var(--text-muted)",
+                      fontSize:9,fontWeight:600,letterSpacing:"0.04em",
+                    }}>
+                    <Ic n={styleOpen?"chevUp":"chevDown"} size={9} sw={1.5}/>
+                    风格
+                    <span style={{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {stylePreset ? STYLE_PRESETS.find(s=>s.id===stylePreset)?.label : "选择预设"}
+                    </span>
+                  </button>
+                  {stylePreset && (
+                    <button onClick={()=>setStylePreset("")}
+                      style={{background:"none",border:"none",color:"var(--text-muted)",fontSize:9,padding:"2px 4px"}}>
+                      清除
+                    </button>
+                  )}
+                </div>
+                {styleOpen && (
+                  <div style={{
+                    display:"grid",
+                    gridTemplateColumns:"repeat(2,minmax(0,1fr))",
+                    gap:5, marginTop:7, maxHeight:132, overflowY:"auto", paddingRight:2,
+                  }}>
+                    {STYLE_PRESETS.map(s=>(
+                      <button key={s.id} onClick={()=>setStylePreset(stylePreset===s.id?"":s.id)}
+                        title={s.label}
+                        style={{
+                          padding:"5px 8px", fontSize:10, borderRadius:8, minWidth:0,
+                          background: stylePreset===s.id ? "var(--accent-soft)" : "rgba(255,255,255,0.02)",
+                          border:`1px solid ${stylePreset===s.id ? "var(--border-accent)" : "var(--border-subtle)"}`,
+                          color: stylePreset===s.id ? "var(--accent)" : "var(--text-secondary)",
+                          fontWeight: stylePreset===s.id ? 600 : 400,
+                          transition:"all .15s", textAlign:"left",
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                        }}>
+                        {s.emoji} {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 画幅比例行 */}
+              <div style={{display:"flex",gap:4,padding:"6px 10px 0",alignItems:"center",overflowX:"auto"}}>
+                <span style={{fontSize:9,color:"var(--text-ghost)",letterSpacing:"0.06em",textTransform:"uppercase",marginRight:2,flexShrink:0}}>画幅</span>
+                {ASPECT_RATIOS.map(r=>(
+                  <button key={r.id} onClick={()=>setAspectRatio(r.id)}
+                    style={{
+                      padding:"2px 8px", fontSize:9, borderRadius:20, flexShrink:0,
+                      background: aspectRatio===r.id ? "var(--accent-soft)" : "transparent",
+                      border:`1px solid ${aspectRatio===r.id ? "var(--border-accent)" : "var(--border-subtle)"}`,
+                      color: aspectRatio===r.id ? "var(--accent)" : "var(--text-muted)",
+                      fontWeight: aspectRatio===r.id ? 600 : 400,
+                      transition:"all .15s", fontFamily:"var(--font-mono)",
+                    }}
+                    onMouseEnter={e=>{if(aspectRatio!==r.id){e.currentTarget.style.borderColor="var(--border-default)";e.currentTarget.style.color="var(--text-secondary)"}}}
+                    onMouseLeave={e=>{if(aspectRatio!==r.id){e.currentTarget.style.borderColor="var(--border-subtle)";e.currentTarget.style.color="var(--text-muted)"}}}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              <textarea value={input} onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+                placeholder={selItem?`告诉我如何修改「${selItem.label}」…`:"描述你想创作的内容…"}
+                rows={2} style={{
+                  width:"100%", background:"transparent", border:"none", outline:"none",
+                  padding:"8px 14px 4px", color:"var(--text-primary)", fontSize:13,
+                  resize:"none", lineHeight:1.65, fontFamily:"var(--font-body)",
+                  boxSizing:"border-box",
+                }}/>
+              <div style={{
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                padding:"4px 10px 8px",
+              }}>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                  <button onClick={()=>{
+                    updateCfg({...cfg, thinkingEnabled:!cfg.thinkingEnabled});
+                  }} title="真实调用模型思考/推理参数。DeepSeek 使用 stream + thinking.enabled + reasoning_effort；OpenAI 官方推理模型走 Responses API reasoning；Claude 走 thinking。"
+                    style={{
+                      padding:"3px 9px", fontSize:9,
+                      background:cfg.thinkingEnabled?"var(--accent-soft)":"transparent",
+                      border:`1px solid ${cfg.thinkingEnabled?"var(--border-accent)":"var(--border-subtle)"}`,
+                      borderRadius:20, color:cfg.thinkingEnabled?"var(--accent)":"var(--text-muted)",
+                      display:"flex", alignItems:"center", gap:3,
+                      letterSpacing:"0.02em", fontWeight:600,
+                      transition:"all .15s",
+                    }}>
+                    <Ic n="sparkle" size={8} sw={1.4}/>{cfg.thinkingEnabled?"思考开":"思考关"}
+                  </button>
+                  {cfg.thinkingEnabled && (
+                    <select value={cfg.thinkingEffort||"medium"}
+                      onChange={e=>updateCfg({...cfg,thinkingEffort:e.target.value})}
+                      title="思考强度：越高越慢、越贵，但规划和提示词通常更稳"
+                      style={{
+                        height:22, padding:"0 7px", fontSize:9, borderRadius:20,
+                        background:"var(--bg-primary)", color:"var(--accent)",
+                        border:"1px solid var(--border-accent)", outline:"none",
+                        fontFamily:"var(--font-mono)",
+                      }}>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                      <option value="max">max</option>
+                    </select>
+                  )}
+                  <button onClick={resetChat} title="重置对话（保留画布）"
+                    style={{
+                      padding:"3px 9px", fontSize:9,
+                      background:"transparent", border:"1px solid var(--border-subtle)",
+                      borderRadius:20, color:"var(--text-muted)",
+                      display:"flex", alignItems:"center", gap:3,
+                      letterSpacing:"0.02em", fontWeight:500,
+                      transition:"all .15s",
+                    }}
+                    onMouseEnter={e=>e.currentTarget.style.color="var(--text-secondary)"}
+                    onMouseLeave={e=>e.currentTarget.style.color="var(--text-muted)"}>
+                    <Ic n="rotate" size={8} sw={1.4}/>重置
+                  </button>
+                </div>
+                <button onClick={send} disabled={!input.trim()||busy}
+                  style={{
+                    width:32, height:32, borderRadius:8,
+                    background: input.trim()&&!busy ? "var(--accent)" : "rgba(255,255,255,0.03)",
+                    border: input.trim()&&!busy ? "none" : "1px solid var(--border-subtle)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    transition:"all .2s",
+                  }}>
+                  <Ic n="send" size={14}
+                    color={input.trim()&&!busy ? "#1A1608" : "var(--text-ghost)"}
+                    sw={1.5}/>
+                </button>
+              </div>
+            </div>
+
+            <p style={{
+              fontSize:9, color:"var(--text-ghost)", marginTop:6, textAlign:"center",
+              letterSpacing:"0.03em",
+            }}>
+              Enter 发送 · Shift+Enter 换行 · 思考模式会调用支持模型的真实推理参数
+            </p>
+          </div>
+        </div>
+
+        {/* Canvas Area */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            padding:"10px 18px", borderBottom:"1px solid var(--border-subtle)", flexShrink:0,
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{
+                fontSize:10, color:"var(--text-muted)", letterSpacing:"0.06em",
+                textTransform:"uppercase", fontWeight:600,
+              }}>
+                {canvas.length>0 ? `${canvas.length} 个作品` : "画布"}
+              </span>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              {selId && (
+                <button onClick={()=>setSelId(null)}
+                  style={{
+                    display:"flex", alignItems:"center", gap:4, padding:"3px 10px",
+                    background:"transparent", border:"1px solid var(--border-subtle)",
+                    borderRadius:6, color:"var(--text-muted)", fontSize:10,
+                    fontWeight:500, transition:"all .15s",
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor="var(--border-default)"}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border-subtle)"}>
+                  <Ic n="close" size={9} sw={1.4}/>取消选择
+                </button>
+              )}
+              {canvas.length>0 && (
+                <button onClick={()=>{setCanvas([]);setSelId(null);}}
+                  style={{
+                    display:"flex", alignItems:"center", gap:4, padding:"3px 10px",
+                    background:"var(--danger-soft)", border:"1px solid rgba(196,85,74,0.12)",
+                    borderRadius:6, color:"var(--danger)", fontSize:10,
+                    fontWeight:500, transition:"all .15s",
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(196,85,74,0.25)"}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(196,85,74,0.12)"}>
+                  <Ic n="trash" size={9} sw={1.4}/>清空
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+            <div style={{flex:1,overflowY:"auto",padding:16}}>
+              {canvas.length===0 ? (
+                <div style={{
+                  height:"100%", display:"flex", flexDirection:"column",
+                  alignItems:"center", justifyContent:"center", gap:20, padding:20,
+                }}>
+                  <div style={{
+                    width:64, height:64, borderRadius:16,
+                    background:"var(--accent-glow)", border:"1px solid var(--border-accent)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    <Ic n="sparkle" size={26} color="var(--accent)" sw={1.2}/>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <p style={{fontSize:14,color:"var(--text-secondary)",fontWeight:500,marginBottom:6,
+                      fontFamily:"var(--font-display)",fontStyle:"italic"}}>
+                      开始你的创作
+                    </p>
+                    <p style={{fontSize:11,color:"var(--text-muted)",lineHeight:1.6}}>
+                      在左侧描述想法，选择风格和画幅，AI 为你生成设计
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  display:"grid",
+                  gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",
+                  gap:12,
+                }}>
+                  {canvas.map(item=>(
+                    <CanvasCard key={item.id} item={item} sel={selId===item.id}
+                      onClick={()=>setSelId(selId===item.id?null:item.id)}
+                      onDel={delItem} onRegen={regen} onMod={modItem}/>
+                  ))}
+                </div>
+              )}
+            </div>
+            {selId && selItem && (
+              <DetailPanel item={selItem} onClose={()=>setSelId(null)}
+                onMod={modItem} onRegen={regen} onDel={delItem}/>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mount ──
+document.getElementById("boot").style.display = "none";
+const root = document.getElementById("root");
+root.style.display = "block";
+ReactDOM.createRoot(root).render(<App/>);
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"45c2bf8136a245cd97f1c2e9a96c0730","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
