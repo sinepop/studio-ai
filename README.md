@@ -1,103 +1,142 @@
-# StudioAI
+# StudioAI Desktop
 
-<div align="center">
+对话驱动的 AI 创意设计桌面工具。一个聊天窗口搞定文字、图像、视频生成。
 
-**中文** | [English](#english)
+## 功能
 
-</div>
+- **对话生成** — 支持 9 家大模型，理解意图后自动调度图像/视频任务
+- **图像生成** — 支持 DALL·E、GPT-Image、Gemini、即梦 Seedream、Pollinations
+- **视频生成** — 支持即梦 Seedance、Runway、HappyHorse，含任务队列与进度追踪
+- **素材画廊** — 网格/自由布局切换，右键菜单支持下载、复制提示词、删除、重新生成
+- **设置面板** — 标题栏齿轮图标或 `Ctrl+,` 打开，按对话/图像/视频分别配置 Provider、API Key、Base URL、模型
+- **连接测试** — 设置内一键验证 API Key 是否可用
+- **白色主题** — 浅色界面，支持深色/浅色/跟随系统切换
 
-## StudioAI — 对话驱动的 AI 创意设计工具
+## 快速开始
 
-一款集对话与设计于一体的 AI 创意工具。通过自然对话让 AI 理解你的灵感与想法，自动转化为精准提示词，调用图像与视频生成模型，将脑海中的画面变为现实。
+1. 下载 `studio-ai-Setup-1.0.0.exe` 并安装
+2. 打开程序，点击标题栏齿轮图标（或按 `Ctrl+,`）进入设置
+3. 在对话/图像/视频标签页配置对应的 API Key
+4. 在聊天框输入需求，AI 自动完成创作
 
-### 为什么做这个？
+## 支持的 Provider
 
-作为一名设计专业的在读研究生，常与设计工具打交道。随着 AI 工具的兴起和迅猛发展，我将目光转到 AI 工具上。经过一段时间的摸索，发现了几个问题：
+| 类型 | Provider |
+|------|----------|
+| 对话 | Claude、GPT、Gemini、DeepSeek、通义千问、Kimi、豆包、智谱、OpenRouter |
+| 图像 | DALL·E / GPT-Image、Gemini Image、即梦 Seedream、Pollinations（免费） |
+| 视频 | 即梦 Seedance、Runway ML、HappyHorse |
 
-1. **AI 模型迭代太快** — 各家模型版权不同，今天刚熟悉一个工具，过几天又听说另一个更好用，来回尝试耗费太多财力、人力和时间。
-2. **提示词使用不当** — 虽然提示词概念已经兴起很久，但大多数同学（包括我自己）有时还是会下意识地直接说一段话让 AI 生图或改图，导致 AI 无法准确理解意图，生成一堆不尽人意的内容。
-3. **费用门槛** — 好用的设计 AI（如 Lovart）费用偏高，作为普通学生难以长期支撑，所以需要另寻他法。
+## 开发
 
-带着点研究的想法和执着，我搜了很多资料。一位网友的话点醒了我：**没有如愿的，那就自己搓。** 于是边学边做，做出了这个初始版本。还有很多问题待解决，后续有空会继续维护。
+```bash
+npm install          # 安装依赖
+npm run dev          # 开发模式（热更新）
+npm run build        # 构建（Vite + 复制主进程模块）
+npm run package      # 构建 + 打包 NSIS 安装包
+```
 
-### 核心特性
+## 项目结构
 
-- **三轨道独立架构** — 对话 / 图像 / 视频，每个轨道独立配置 Provider，互不干扰
-- **自由搭配** — 支持 Claude、GPT、Gemini、DeepSeek、Kimi、通义千问、Doubao、智谱等主流模型
-- **对话即设计** — 和 AI 聊清楚你的想法，它帮你生成提示词并调用模型出图 / 出视频
-- **多模型切换** — 每个轨道可随时切换 Provider，按需选择最适合的模型
-- **本地 CORS 代理** — 附带代理脚本，解决浏览器跨域限制
+```
+studio-ai/
+├── electron/                # 主进程（Node.js / Electron）
+│   ├── main.js              # 窗口创建、IPC 注册
+│   ├── preload.js           # contextBridge 暴露 electronAPI
+│   ├── config.js            # 配置持久化 → %APPDATA%/StudioAI/config.json
+│   ├── store.js             # 历史记录持久化
+│   └── api/
+│       ├── chat.js          # 对话 API（Anthropic / OpenAI / Gemini 格式）
+│       ├── image.js         # 图像生成 API
+│       ├── video.js         # 视频生成 API（含轮询）
+│       └── models.js        # 模型列表获取
+├── src/                     # 渲染进程（React）
+│   ├── main.jsx             # React 入口
+│   ├── App.jsx              # 根组件、布局编排
+│   ├── components/
+│   │   ├── TitleBar.jsx     # 自定义标题栏（含设置入口）
+│   │   ├── ModelBar.jsx     # 底部 Provider 切换栏
+│   │   ├── ChatPanel.jsx    # 聊天面板
+│   │   ├── CanvasPanel.jsx  # 素材画廊（网格/自由布局）
+│   │   ├── AssetCard.jsx    # 素材缩略卡片
+│   │   ├── AssetDetail.jsx  # 素材详情侧边栏
+│   │   ├── MessageBubble.jsx # 聊天气泡（Markdown 渲染）
+│   │   ├── Settings.jsx     # 设置模态框（4 标签页）
+│   │   ├── TaskQueue.jsx    # 视频任务队列
+│   │   ├── ContextMenu.jsx  # 右键菜单
+│   │   └── icons.jsx        # SVG 图标组件
+│   ├── hooks/
+│   │   ├── useConfig.js     # 配置状态 + IPC 读写
+│   │   ├── useChat.js       # 对话逻辑、意图解析、任务调度
+│   │   ├── useCanvas.js     # 素材管理
+│   │   └── useTaskQueue.js  # 视频任务轮询
+│   ├── providers/
+│   │   ├── chatProviders.js # 9 家对话 Provider 定义
+│   │   ├── imageProviders.js# 4 家图像 Provider 定义
+│   │   └── videoProviders.js# 3 家视频 Provider 定义
+│   └── styles/
+│       └── global.css       # 全局主题变量与基础样式
+├── build/                   # 构建资源（图标等）
+├── electron-builder.yml     # NSIS 打包配置
+├── electron.vite.config.mjs # Vite 构建配置
+└── index.html               # HTML 入口
+```
 
-### 快速开始
+## 技术栈
 
-1. 双击打开 `StudioAI_API_Audit_FIXED.html`
-2. 在 Settings 中配置你的 API Key（对话 / 图像 / 视频分别配置）
-3. 开始对话，让 AI 帮你实现创意
+- **Electron 33** — 桌面框架
+- **React 18** — UI 框架
+- **Vite 5** — 构建工具（electron-vite）
+- **electron-builder** — NSIS 安装包打包
+- **react-markdown + remark-gfm** — Markdown 渲染
 
-> 如遇跨域问题，运行 `node proxy.mjs` 启动本地代理，在 Settings 中开启「全部走代理」。
+## 配置存储
 
-### 文件说明
+用户配置保存在 `%APPDATA%/StudioAI/config.json`，结构：
 
-| 文件 | 说明 |
-|------|------|
-| `StudioAI_API_Audit_FIXED.html` | 主应用（单文件，浏览器直接打开） |
-| `proxy.mjs` | 本地 CORS 代理（Node.js，端口 8787） |
-| `启动代理.bat` | Windows 下双击启动代理 |
+```json
+{
+  "providers": {
+    "chat": { "id": "claude", "apiKey": "", "baseUrl": "", "model": "" },
+    "image": { "id": "dalle", "apiKey": "", "baseUrl": "", "model": "" },
+    "video": { "id": "jimeng_vid", "apiKey": "", "baseUrl": "", "model": "" }
+  },
+  "general": {
+    "theme": "dark",
+    "language": "zh",
+    "fontSize": "medium",
+    "autoSave": true,
+    "apiTimeout": 60000
+  }
+}
+```
 
----
+## 更新日志
 
-<div align="center">
+### v1.0.0 (2026-06-03)
 
-[English](#english) | **中文**
+**核心功能**
+- 对话驱动的多模态生成：输入自然语言，AI 自动识别意图并调度图像/视频生成
+- 9 家对话 Provider + 4 家图像 Provider + 3 家视频 Provider
+- 素材画廊支持网格/自由布局，右键菜单操作
+- 视频生成任务队列，支持进度追踪与重试
 
-</div>
+**设置与配置**
+- 标题栏齿轮图标 + `Ctrl+,` 快捷键打开设置
+- 按对话/图像/视频分别配置 Provider、API Key、Base URL、模型
+- 一键连接测试验证 API Key
+- 配置持久化到 `%APPDATA%/StudioAI/`
 
----
+**界面**
+- 白色主题，支持深色/浅色/跟随系统
+- 自定义无边框标题栏
+- 底部 Provider 快速切换栏
 
-<a id="english"></a>
+**构建与打包**
+- electron-vite 构建，主进程本地模块自动复制
+- NSIS 安装包，支持 Windows x64
+- Electron 窗口背景色与主题一致
 
-# StudioAI
+## License
 
-<div align="center">
-
-[中文](#studioai--对话驱动的-ai-创意设计工具) | **English**
-
-</div>
-
-## StudioAI — Conversation-Driven AI Design Tool
-
-A creative AI tool that unites conversation and design. Share your ideas through natural dialogue — StudioAI converts them into precise prompts and calls image/video generation models to bring your vision to life.
-
-### Why I Built This
-
-As a graduate student in design, I work with design tools on a daily basis. With the rapid rise of AI tools, I turned my attention to this space. After some exploration, I ran into a few problems:
-
-1. **AI models iterate too fast** — Different providers have different copyrights and capabilities. Just when you get familiar with one tool, you hear about another that works better. Switching back and forth costs a lot of time, energy, and money.
-2. **Poor prompt habits** — Although the concept of prompt engineering has been around for a while, most of my classmates (myself included) still tend to casually describe what they want in plain language, leading to poor AI understanding and disappointing outputs.
-3. **Cost barriers** — Good design AI tools (like Lovart) are expensive, hard for an ordinary student to sustain long-term. I had to find another way.
-
-Driven by a research mindset and sheer persistence, I dug through tons of resources. One netizen's comment hit home: **"If what you want doesn't exist, build it yourself."** So I learned as I went and built this tool from scratch. It's still an early version with plenty of issues to fix — I'll keep iterating whenever I have time.
-
-### Key Features
-
-- **Three Independent Tracks** — Chat / Image / Video, each with its own provider configuration
-- **Mix & Match Freely** — Supports Claude, GPT, Gemini, DeepSeek, Kimi, Qwen, Doubao, GLM, and more
-- **Design Through Conversation** — Tell AI what you want, it generates prompts and produces images/videos
-- **Multi-Model Switching** — Swap providers per track anytime to pick the best model for the job
-- **Local CORS Proxy** — Bundled proxy script to bypass browser cross-origin restrictions
-
-### Quick Start
-
-1. Open `StudioAI_API_Audit_FIXED.html` in your browser
-2. Go to Settings and configure your API keys (separate for Chat / Image / Video)
-3. Start chatting and let AI bring your ideas to life
-
-> If you encounter CORS issues, run `node proxy.mjs` to start the local proxy, then enable "Proxy All" in Settings.
-
-### File Overview
-
-| File | Description |
-|------|-------------|
-| `StudioAI_API_Audit_FIXED.html` | Main app (single file, open directly in browser) |
-| `proxy.mjs` | Local CORS proxy (Node.js, port 8787) |
-| `启动代理.bat` | Double-click to start proxy on Windows |
+MIT
