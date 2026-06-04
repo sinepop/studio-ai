@@ -23,10 +23,10 @@ const STYLE_PRESETS = ['扁平插画', '3D 渲染', '写实摄影', '水彩画',
 const DURATIONS = ['5s', '8s', '10s']
 
 /* ── reusable styles (all CSS variables) ── */
-const labelS = () => ({ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--font-size-base)', color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' })
-const inputS = () => ({ background: 'var(--bg-input)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '7px 10px', color: 'var(--text-primary)', fontSize: 'var(--font-size-base)', fontFamily: 'var(--font-mono)', outline: 'none' })
-const selectS = () => ({ ...inputS(), appearance: 'auto', cursor: 'pointer' })
-const btnS = (primary) => ({ padding: '7px 20px', background: primary ? 'var(--accent)' : 'var(--bg-surface)', border: primary ? 'none' : '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: primary ? '#FFF' : 'var(--text-secondary)', fontSize: 'var(--font-size-base)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: primary ? 500 : 400 })
+const labelS = () => ({ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-body)', fontWeight: 400, letterSpacing: '0.2px' })
+const inputS = () => ({ background: 'var(--bg-input)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', transition: 'all 0.2s ease', lineHeight: 1.5 })
+const selectS = () => ({ ...inputS(), appearance: 'auto', cursor: 'pointer', fontFamily: 'var(--font-body)' })
+const btnS = (primary) => ({ padding: '8px 22px', background: primary ? 'linear-gradient(135deg, var(--accent) 0%, #D4942E 100%)' : 'var(--bg-surface)', border: primary ? 'none' : '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: primary ? '#FFF' : 'var(--text-secondary)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: primary ? 600 : 400, transition: 'all 0.2s ease', boxShadow: primary ? '0 2px 12px rgba(232,168,73,0.25), inset 0 1px 0 rgba(255,255,255,0.12)' : 'none' })
 
 /* ── ProviderTab ── */
 function ProviderTab({ track, providers, config, onChange, lang }) {
@@ -268,12 +268,19 @@ export default function Settings({ config, onSave, onClose }) {
   if (!local) return null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 680, maxHeight: '80vh', background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: 'var(--font-body)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 680, maxHeight: '80vh', background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', fontFamily: 'var(--font-body)', animation: 'scaleIn 0.2s ease' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{t('settings', lang)}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}><Ic n="close" size={15} /></button>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+            padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 'var(--radius-sm)', transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,112,106,0.12)'; e.currentTarget.style.color = 'var(--danger)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+          ><Ic n="close" size={16} sw={2} /></button>
         </div>
         {/* Body: sidebar + content */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -281,8 +288,8 @@ export default function Settings({ config, onSave, onClose }) {
           <div style={{ width: 170, borderRight: '1px solid var(--border-subtle)', padding: '12px 0', overflow: 'auto', flexShrink: 0 }}>
             {NAV_SECTIONS.map(section => (
               <div key={section.id}>
-                <button onClick={() => setExpanded(prev => ({ ...prev, [section.id]: !prev[section.id] }))} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left' }}>
-                  <Ic n={section.icon} size={12} />
+                <button onClick={() => setExpanded(prev => ({ ...prev, [section.id]: !prev[section.id] }))} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', cursor: 'pointer', fontFamily: 'var(--font-body)', textAlign: 'left' }}>
+                  <Ic n={section.icon} size={13} sw={2} />
                   {t(section.labelKey, lang)}
                   <span style={{ marginLeft: 'auto', fontSize: 10, transition: 'transform 0.15s', transform: expanded[section.id] ? 'rotate(0)' : 'rotate(-90deg)' }}>▼</span>
                 </button>
@@ -307,8 +314,14 @@ export default function Settings({ config, onSave, onClose }) {
         </div>
         {/* Footer */}
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button onClick={onClose} style={btnS(false)}>{t('cancel', lang)}</button>
-          <button onClick={handleSave} style={btnS(true)}>{t('save', lang)}</button>
+          <button onClick={onClose} style={btnS(false)}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border-accent)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.borderColor = 'var(--border-default)' }}
+          >{t('cancel', lang)}</button>
+          <button onClick={handleSave} style={btnS(true)}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(232,168,73,0.35), inset 0 1px 0 rgba(255,255,255,0.2)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = btnS(true).boxShadow }}
+          >{t('save', lang)}</button>
         </div>
       </div>
     </div>

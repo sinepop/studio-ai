@@ -3,9 +3,11 @@ import MessageBubble from './MessageBubble'
 import { t } from '../i18n'
 import Ic from './icons'
 
-export default function ChatPanel({ chat, lang, conversations, activeConvId, onSwitchConv, onNewConv, onDeleteConv }) {
+export default function ChatPanel({ chat, lang, conversations, activeConvId, onSwitchConv, onNewConv, onDeleteConv, canvas }) {
   const [input, setInput] = useState('')
   const [showConvList, setShowConvList] = useState(false)
+  const [showRefPicker, setShowRefPicker] = useState(false)
+  const [references, setReferences] = useState([]) // [{id, url, type, label}]
   const endRef = useRef(null)
   const textareaRef = useRef(null)
 
@@ -24,10 +26,22 @@ export default function ChatPanel({ chat, lang, conversations, activeConvId, onS
 
   const handleSend = useCallback(() => {
     if (!input.trim() || chat.loading) return
-    chat.send(input)
+    const refs = references.length > 0 ? references : undefined
+    chat.send(input, refs)
     setInput('')
+    setReferences([])
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [input, chat])
+  }, [input, chat, references])
+
+  const addReference = useCallback((asset) => {
+    if (references.find(r => r.id === asset.id)) return
+    setReferences(prev => [...prev, { id: asset.id, url: asset.url, type: asset.type, label: asset.label }])
+    setShowRefPicker(false)
+  }, [references])
+
+  const removeReference = useCallback((id) => {
+    setReferences(prev => prev.filter(r => r.id !== id))
+  }, [])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
@@ -44,28 +58,43 @@ export default function ChatPanel({ chat, lang, conversations, activeConvId, onS
     return d.toLocaleDateString()
   }
 
+  const canSend = input.trim() && !chat.loading
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Conversation bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+        borderBottom: '1px solid var(--border-subtle)', flexShrink: 0,
+        background: 'var(--bg-elevated)'
+      }}>
         <button onClick={() => setShowConvList(!showConvList)} style={{
           background: showConvList ? 'var(--accent-soft)' : 'transparent',
           border: `1px solid ${showConvList ? 'var(--border-accent)' : 'var(--border-subtle)'}`,
-          borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-secondary)',
-          fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
-        }}>
-          <Ic n="grid" size={10} /> {t('conversations', lang)}
+          borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: showConvList ? 'var(--accent)' : 'var(--text-secondary)',
+          fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+          fontWeight: showConvList ? 600 : 400, transition: 'all 0.2s ease',
+          boxShadow: showConvList ? '0 0 0 2px var(--accent-glow)' : 'none'
+        }}
+        onMouseEnter={e => { if (!showConvList) { e.currentTarget.style.borderColor = 'var(--border-accent)'; e.currentTarget.style.color = 'var(--accent)' } }}
+        onMouseLeave={e => { if (!showConvList) { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-secondary)' } }}
+        >
+          <Ic n="grid" size={11} sw={2} /> {t('conversations', lang)}
         </button>
         <button onClick={onNewConv} style={{
           background: 'transparent', border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--accent)',
-          fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
-        }}>
+          borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--accent)',
+          fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
+          transition: 'all 0.2s ease'
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-accent)'; e.currentTarget.style.background = 'var(--accent-soft)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'transparent' }}
+        >
           + {t('newConversation', lang)}
         </button>
         <div style={{ flex: 1 }} />
         {conversations.length > 0 && (
-          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: 10, color: 'var(--text-ghost)', fontFamily: 'var(--font-mono)' }}>
             {conversations.findIndex(c => c.id === activeConvId) + 1}/{conversations.length}
           </span>
         )}
@@ -74,32 +103,40 @@ export default function ChatPanel({ chat, lang, conversations, activeConvId, onS
       {/* Conversation list dropdown */}
       {showConvList && (
         <div style={{
-          borderBottom: '1px solid var(--border-subtle)', maxHeight: 200, overflow: 'auto',
-          background: 'var(--bg-elevated)', padding: 4
+          borderBottom: '1px solid var(--border-subtle)', maxHeight: 220, overflow: 'auto',
+          background: 'var(--bg-elevated)', padding: 6, animation: 'scaleIn 0.15s ease'
         }}>
           {conversations.length === 0 ? (
-            <div style={{ padding: 12, textAlign: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
+            <div style={{ padding: 16, textAlign: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
               {lang === 'en' ? 'No conversations' : '暂无对话'}
             </div>
           ) : conversations.map(conv => (
             <div key={conv.id} onClick={() => { onSwitchConv(conv.id); setShowConvList(false) }}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                borderRadius: 'var(--radius-sm)', cursor: 'pointer', marginBottom: 2,
                 background: conv.id === activeConvId ? 'var(--accent-soft)' : 'transparent',
-                border: conv.id === activeConvId ? '1px solid var(--border-accent)' : '1px solid transparent'
+                border: `1px solid ${conv.id === activeConvId ? 'var(--border-accent)' : 'transparent'}`,
+                transition: 'background 0.15s'
               }}
               onMouseEnter={e => { if (conv.id !== activeConvId) e.currentTarget.style.background = 'var(--bg-hover)' }}
               onMouseLeave={e => { if (conv.id !== activeConvId) e.currentTarget.style.background = 'transparent' }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{
+                  fontSize: 12, color: 'var(--text-primary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  fontWeight: conv.id === activeConvId ? 500 : 400
+                }}>
                   {conv.title || (lang === 'en' ? 'Untitled' : '未命名对话')}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{formatDate(conv.updatedAt)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{formatDate(conv.updatedAt)}</div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); if (window.confirm(t('deleteConvConfirm', lang))) onDeleteConv(conv.id) }}
-                style={{ background: 'none', border: 'none', color: 'var(--text-ghost)', cursor: 'pointer', padding: 2 }}>
+                style={{ background: 'none', border: 'none', color: 'var(--text-ghost)', cursor: 'pointer', padding: 2, opacity: 0.5, transition: 'opacity 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                onMouseLeave={e => e.currentTarget.style.opacity = 0.5}
+              >
                 <Ic n="trash" size={10} />
               </button>
             </div>
@@ -108,12 +145,21 @@ export default function ChatPanel({ chat, lang, conversations, activeConvId, onS
       )}
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px 12px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px 14px' }}>
         {chat.messages.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-            <div style={{ marginBottom: 12 }}><Ic n="sparkle" size={32} color="var(--accent)" /></div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontStyle: 'italic', marginBottom: 8 }}>{t('studioAi', lang)}</div>
-            <div style={{ fontSize: 11 }}>{lang === 'en' ? 'Tell me what you want to create' : '告诉我你想创作什么'}</div>
+          <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
+            <div style={{
+              marginBottom: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 56, height: 56, borderRadius: '50%',
+              background: 'var(--accent-soft)', border: '1px solid var(--border-accent)'
+            }}>
+              <Ic n="sparkle" size={24} color="var(--accent)" />
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic',
+              marginBottom: 8, color: 'var(--text-secondary)', letterSpacing: '0.5px'
+            }}>{t('studioAi', lang)}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lang === 'en' ? 'Tell me what you want to create' : '告诉我你想创作什么'}</div>
           </div>
         )}
         {chat.messages.map(msg => (
@@ -121,30 +167,137 @@ export default function ChatPanel({ chat, lang, conversations, activeConvId, onS
             onConfirmTask={(msgId, task) => chat.confirmGenerate(msgId, task)} />
         ))}
         {chat.loading && (
-          <div style={{ padding: '8px 0', color: 'var(--text-muted)', fontSize: 11 }}>
-            <span style={{ animation: 'pulse 1.5s infinite' }}>{t('thinking', lang)}</span>
+          <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)',
+              animation: 'pulse 1.2s ease-in-out infinite'
+            }} />
+            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{t('thinking', lang)}</span>
           </div>
         )}
         <div ref={endRef} />
       </div>
 
-      {/* Input */}
-      <div style={{ padding: '8px 12px 12px', borderTop: '1px solid var(--border-subtle)' }}>
+      {/* References preview */}
+      {references.length > 0 && (
         <div style={{
-          display: 'flex', gap: 8, alignItems: 'flex-end',
-          background: 'var(--bg-input)', border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-md)', padding: '8px 10px'
+          display: 'flex', gap: 6, padding: '8px 14px 0', flexWrap: 'wrap'
+        }}>
+          {references.map(ref => (
+            <div key={ref.id} style={{
+              position: 'relative', width: 48, height: 48, borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden', border: '1px solid var(--border-accent)', flexShrink: 0
+            }}>
+              <img src={ref.url} alt={ref.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <button onClick={() => removeReference(ref.id)} style={{
+                position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: '50%',
+                background: 'var(--danger)', border: 'none', color: '#fff', fontSize: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                lineHeight: 1
+              }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reference picker dropdown */}
+      {showRefPicker && canvas?.allAssets?.length > 0 && (
+        <div style={{
+          padding: '6px 14px', maxHeight: 160, overflow: 'auto',
+          background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex', gap: 6, flexWrap: 'wrap', animation: 'scaleIn 0.12s ease'
+        }}>
+          {canvas.allAssets.filter(a => a.url).map(asset => (
+            <div key={asset.id} onClick={() => addReference(asset)} style={{
+              width: 52, height: 52, borderRadius: 'var(--radius-sm)', overflow: 'hidden',
+              border: references.find(r => r.id === asset.id) ? '2px solid var(--accent)' : '1px solid var(--border-default)',
+              cursor: 'pointer', flexShrink: 0, position: 'relative'
+            }}>
+              <img src={asset.url} alt={asset.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0, padding: '1px 3px',
+                background: 'rgba(0,0,0,0.6)', fontSize: 8, color: '#fff', textAlign: 'center',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+              }}>{asset.type}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <div style={{ padding: '8px 14px 14px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-primary)' }}>
+        {/* Toolbar row */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8
+        }}>
+          <button onClick={() => chat.setThinking(!chat.thinking)} style={{
+            background: chat.thinking ? 'var(--accent-soft)' : 'transparent',
+            border: `1px solid ${chat.thinking ? 'var(--border-accent)' : 'var(--border-subtle)'}`,
+            borderRadius: 'var(--radius-sm)', padding: '5px 10px',
+            color: chat.thinking ? 'var(--accent)' : 'var(--text-muted)',
+            fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            fontWeight: chat.thinking ? 600 : 400, transition: 'all 0.2s ease',
+            boxShadow: chat.thinking ? '0 0 0 2px var(--accent-glow)' : 'none'
+          }}
+          onMouseEnter={e => { if (!chat.thinking) { e.currentTarget.style.borderColor = 'var(--border-accent)'; e.currentTarget.style.color = 'var(--text-secondary)' } }}
+          onMouseLeave={e => { if (!chat.thinking) { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' } }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2a7 7 0 017 7c0 2.5-1.5 4.5-3 6s-2 3-2 5M12 2a7 7 0 00-7 7c0 2.5 1.5 4.5 3 6s2 3 2 5"/>
+              <circle cx="12" cy="19" r="1"/>
+            </svg>
+            {lang === 'en' ? 'Think' : '深度思考'}
+          </button>
+          <button onClick={() => setShowRefPicker(!showRefPicker)} style={{
+            background: showRefPicker || references.length > 0 ? 'var(--accent-soft)' : 'transparent',
+            border: `1px solid ${showRefPicker || references.length > 0 ? 'var(--border-accent)' : 'var(--border-subtle)'}`,
+            borderRadius: 'var(--radius-sm)', padding: '5px 10px',
+            color: showRefPicker || references.length > 0 ? 'var(--accent)' : 'var(--text-muted)',
+            fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            fontWeight: references.length > 0 ? 600 : 400, transition: 'all 0.2s ease',
+            boxShadow: showRefPicker || references.length > 0 ? '0 0 0 2px var(--accent-glow)' : 'none'
+          }}
+          onMouseEnter={e => { if (!showRefPicker && references.length === 0) { e.currentTarget.style.borderColor = 'var(--border-accent)'; e.currentTarget.style.color = 'var(--text-secondary)' } }}
+          onMouseLeave={e => { if (!showRefPicker && references.length === 0) { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' } }}
+          >
+            <Ic n="image" size={11} sw={2} />
+            {lang === 'en' ? 'Reference' : '参考图'}
+            {references.length > 0 && <span style={{
+              background: 'var(--accent)', color: '#fff', borderRadius: '50%',
+              width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600
+            }}>{references.length}</span>}
+          </button>
+          <div style={{ flex: 1 }} />
+        </div>
+        {/* Input box */}
+        <div style={{
+          display: 'flex', gap: 10, alignItems: 'flex-end',
+          background: 'var(--bg-input)', border: `1px solid ${canSend ? 'var(--border-accent)' : 'var(--border-default)'}`,
+          borderRadius: 'var(--radius-md)', padding: '10px 12px',
+          transition: 'border-color 0.25s, box-shadow 0.25s',
+          boxShadow: canSend ? '0 0 0 2px var(--accent-glow), var(--shadow-accent)' : 'none'
         }}>
           <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
             placeholder={t('inputPlaceholder', lang)} rows={1}
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 13, resize: 'none', maxHeight: 120, lineHeight: 1.5 }} />
-          <button onClick={handleSend} disabled={!input.trim() || chat.loading} style={{
-            background: input.trim() && !chat.loading ? 'var(--accent)' : 'var(--bg-hover)',
-            border: 'none', borderRadius: 'var(--radius-sm)', width: 32, height: 32,
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              color: 'var(--text-primary)', fontSize: 13, resize: 'none', maxHeight: 120, lineHeight: 1.6
+            }} />
+          <button onClick={handleSend} disabled={!canSend} style={{
+            background: canSend
+              ? 'linear-gradient(135deg, var(--accent) 0%, #D4942E 100%)'
+              : 'var(--bg-hover)',
+            border: 'none', borderRadius: 'var(--radius-sm)', width: 36, height: 36,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: input.trim() && !chat.loading ? 'pointer' : 'default', flexShrink: 0
-          }}>
-            <Ic n="send" size={14} color={input.trim() && !chat.loading ? '#000' : 'var(--text-muted)'} />
+            cursor: canSend ? 'pointer' : 'default', flexShrink: 0,
+            transition: 'all 0.2s ease',
+            boxShadow: canSend ? '0 2px 12px rgba(232,168,73,0.3), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+            transform: canSend ? 'scale(1)' : 'scale(0.95)'
+          }}
+          onMouseEnter={e => { if (canSend) e.currentTarget.style.transform = 'scale(1.08)' }}
+          onMouseLeave={e => { if (canSend) e.currentTarget.style.transform = 'scale(1)' }}
+          >
+            <Ic n="send" size={15} sw={2} color={canSend ? '#FFF' : 'var(--text-muted)'} />
           </button>
         </div>
       </div>

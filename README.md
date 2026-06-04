@@ -19,18 +19,24 @@
 ### 功能
 
 - **对话生成** — 支持多家大模型，理解意图后自动调度图像/视频任务
+- **深度思考** — 开启思考开关后，模型进入 extended thinking 模式，推理更深入
 - **图像生成** — 支持主流图像生成模型，先出提示词再确认生成
 - **视频生成** — 支持多家视频生成服务，含任务队列与进度追踪
 - **迭代修改** — 生成后用自然语言描述修改，AI 增量调整 prompt，保留满意部分
+- **无限画布** — 参考 Figma/Lovart 的缩放平移体验，鼠标滚轮缩放、拖拽平移
+- **画布编辑工具栏** — 选择、移动、铅笔、矩形、圆形、直线、文字等绘图工具
+- **参考图/视频** — 对话中附加多张参考图或视频，AI 结合上下文理解意图
+- **图片缩放预览** — 生成图片支持滚轮缩放、拖拽平移、双击重置
 - **多对话管理** — 多对话并行，独立记忆互不干扰，支持切换/新建/删除
 - **素材画廊** — 网格/自由布局切换，右键菜单操作，图片点击放大预览
 - **设置面板** — 左侧导航布局，通用设置 + API 配置分组，模型自动获取下拉选择
 - **主题与国际化** — 深色/浅色/跟随系统 + 中英文切换 + 字体大小调节
+- **Lucide 图标** — 全组件采用 Lucide React 图标库，精致统一
 - **消息可复制** — 对话内容支持选中复制，Shift+Enter 换行
 
 ### 快速开始
 
-1. 下载 `gravuresse-Setup-1.1.0.exe` 并安装
+1. 下载 `gravuresse-Setup-1.2.0.exe` 并安装
 2. 打开程序，点击标题栏齿轮图标（或按 `Ctrl+,`）进入设置
 3. 在 API 配置中选择 Provider，输入 API Key，模型自动获取
 4. 在聊天框输入需求，AI 先出提示词，确认后自动生成
@@ -45,6 +51,42 @@ npm run package
 ```
 
 ### 更新日志
+
+#### v1.2.0 (2026-06-04)
+
+**无限画布**
+- 参考 Figma/Lovart 的画布交互，鼠标滚轮以光标为中心缩放，拖拽平移
+- 浮动缩放控件：放大、缩小、适应画布、缩放比例显示
+
+**画布编辑工具栏**
+- 底部居中 Figma 风格工具栏：选择、移动、铅笔、矩形、圆形、直线、文字
+- 工具激活时内联显示颜色盘和线宽选项
+- HTML5 Canvas overlay 实时预览绘制形状
+
+**深度思考**
+- 对话输入栏新增「深度思考」开关，开启后调用 Anthropic extended thinking
+- 思考过程可折叠展示，独立于正文内容
+
+**参考图/视频**
+- 对话输入栏新增「参考图」按钮，可从素材画廊选取多张参考图
+- 参考图缩略图预览，支持单独移除
+- 参考内容注入系统 prompt，AI 结合上下文理解意图
+
+**图片缩放预览**
+- 素材详情面板图片支持滚轮缩放、拖拽平移、双击重置
+- 独立 lightbox 模式全屏查看
+
+**UI 全面优化**
+- 标题栏窗口按钮改为精致 SVG 图标，关闭按钮悬停红色高亮
+- 发送按钮加大、渐变金色、悬停放大带阴影
+- 底部模型栏按钮加大，标签大写+金色分隔线，版本号胶囊样式
+- 设置面板输入框加宽，保存按钮渐变+悬停上浮
+- 全组件迁移至 Lucide React 图标库
+- 自定义应用图标
+
+**其他**
+- 修复对话切换时内容丢失的 bug（stale closure + sync race condition）
+- 修复 ZoomableImage 拖拽偏移闭包问题
 
 #### v1.1.0 (2026-06-03)
 
@@ -118,18 +160,24 @@ Driven by a research mindset and sheer persistence, I dug through tons of resour
 ### Features
 
 - **Chat Generation** — Supports multiple LLM providers, auto-dispatches image/video tasks based on intent
+- **Deep Thinking** — Toggle extended thinking mode for deeper reasoning with Anthropic models
 - **Image Generation** — Shows prompt for review before generation, supports iterative modification
 - **Video Generation** — Supports multiple video services with task queue and progress tracking
 - **Iterative Editing** — Describe changes in natural language, AI incrementally adjusts the prompt
+- **Infinite Canvas** — Figma/Loveart-style zoom/pan: scroll to zoom on cursor, drag to pan
+- **Canvas Edit Toolbar** — Select, move, pencil, rectangle, circle, line, text drawing tools
+- **Reference Images/Videos** — Attach multiple reference images from the asset gallery to chat
+- **Image Zoom Preview** — Scroll-zoom, drag-pan, double-click reset for generated images
 - **Multi-Conversation** — Parallel conversations with isolated memory, switch/create/delete
 - **Asset Gallery** — Grid/free layout, right-click menu, click-to-zoom preview
 - **Settings Panel** — Sidebar navigation layout, auto-fetch models, grouped by General + API
 - **Theme & i18n** — Dark/light/system themes, Chinese/English, adjustable font size
+- **Lucide Icons** — Unified icon system across all components using Lucide React
 - **Copy & Paste** — Message text selectable and copyable, Shift+Enter for newlines
 
 ### Quick Start
 
-1. Download `gravuresse-Setup-1.1.0.exe` and install
+1. Download `gravuresse-Setup-1.2.0.exe` and install
 2. Open the app, click the gear icon in the title bar (or press `Ctrl+,`) to open Settings
 3. Select a Provider in API Configuration, enter your API Key — models are auto-fetched
 4. Type your request in chat, AI shows the prompt first, confirm to generate
@@ -144,6 +192,42 @@ npm run package
 ```
 
 ### Changelog
+
+#### v1.2.0 (2026-06-04)
+
+**Infinite Canvas**
+- Figma/Loveart-style canvas interaction: scroll-zoom centered on cursor, drag to pan
+- Floating zoom controls: zoom in, zoom out, fit canvas, zoom percentage display
+
+**Canvas Edit Toolbar**
+- Bottom-centered Figma-style toolbar: select, move, pencil, rectangle, circle, line, text
+- Inline color palette and stroke width options when drawing tool is active
+- HTML5 Canvas overlay with real-time shape preview
+
+**Deep Thinking**
+- New "Think" toggle in chat input, enables Anthropic extended thinking mode
+- Collapsible thinking process display, separate from response content
+
+**Reference Images/Videos**
+- New "Reference" button to pick multiple images from the asset gallery
+- Thumbnail preview with individual remove support
+- References injected into system prompt for contextual understanding
+
+**Image Zoom Preview**
+- Asset detail image supports scroll-zoom, drag-pan, double-click reset
+- Standalone lightbox mode for fullscreen viewing
+
+**UI Overhaul**
+- Title bar window buttons replaced with refined SVG icons, close button red highlight on hover
+- Send button enlarged with gradient gold, hover scale-up with shadow
+- Model bar buttons enlarged, accent uppercase labels with divider, version pill badge
+- Settings input fields wider, save button gradient with hover lift
+- Migrated all components to Lucide React icon library
+- Custom application icon
+
+**Other**
+- Fixed conversation disappearing bug on switch (stale closure + sync race condition)
+- Fixed ZoomableImage drag offset closure issue
 
 #### v1.1.0 (2026-06-03)
 

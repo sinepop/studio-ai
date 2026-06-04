@@ -4,9 +4,10 @@ import { t } from '../i18n'
 export default function useChat(config, canvas) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [thinking, setThinking] = useState(false)
   const lastImageContext = useRef(null) // { prompt, ratio, assetId }
 
-  const send = useCallback(async (text) => {
+  const send = useCallback(async (text, references) => {
     if (!text.trim() || loading) return
     const userMsg = { role: 'user', content: text, id: Date.now() }
     setMessages(prev => [...prev, userMsg])
@@ -32,11 +33,17 @@ export default function useChat(config, canvas) {
 如果用户要修改图片，必须基于上次 prompt 做增量修改（保留用户满意的部分，只改用户提到的点），intent=modify_image，source_image_id 填 ${modifyContext.assetId}。`
         : ''
 
+      const refHint = references?.length > 0
+        ? `\n\n## 用户提供的参考素材
+${references.map((r, i) => `  [参考${i + 1}] ${r.type}: "${r.label}" | URL: ${r.url}`).join('\n')}
+用户提供了以上参考图片/视频，请结合这些参考素材来理解用户意图。如果是生成图片，参考其风格、构图、色彩。`
+        : ''
+
       const system = `你是 Gravuresse，专业 AI 创意设计工作流 Agent。你主要是一个对话助手，只在用户明确要求时才触发图片/视频生成。
 
 ## 当前画布
 ${canvas ? canvas.allAssets?.slice(0, 10).map(a => `  [${a.id}] "${a.label}" | ${a.type} | ${a.prompt?.slice(0, 80)}`).join('\n') || '（空）' : '（空）'}
-${modifyHint}
+${modifyHint}${refHint}
 
 ## 响应格式（只输出纯JSON，不要markdown代码块）
 {"understanding":"一句话理解用户意图","intent":"chat|generate_image|modify_image|generate_video|image_to_video","tasks":[{"id":"t1","type":"image|video","label":"中文短标签","prompt":"高质量英文prompt，80词以上，含主体/场景/镜头/构图/光线/色彩/材质/情绪/细节","negative_prompt":"low quality, blurry, deformed, watermark, text","source_image_id":null,"duration":5,"ratio":"1:1"}],"reply":"中文友好回复"}
@@ -53,9 +60,10 @@ ${modifyHint}
 9. 不确定时，默认走 chat，不要猜测用户想生成。
 10. modify_image 时，新 prompt 必须基于上次 prompt 做增量修改，保留用户没提到的部分。`
 
-      const result = await window.electronAPI.chat({ history, system }, provider)
+      const result = await window.electronAPI.chat({ history, system, thinking }, provider)
 
       let replyText = result.text
+      const thinkingText = result.thinking || ''
       let parsed = null
       try {
         const jsonMatch = result.text.match(/\{[\s\S]*\}/)
@@ -82,11 +90,12 @@ ${modifyHint}
           id: Date.now() + 1,
           model: result.model,
           task: taskData,
+          thinking: thinkingText || undefined,
         }
         setMessages(prev => [...prev, replyMsg])
       } else {
         replyText = parsed?.reply || replyText
-        const replyMsg = { role: 'assistant', content: replyText, id: Date.now() + 1, model: result.model }
+        const replyMsg = { role: 'assistant', content: replyText, id: Date.now() + 1, model: result.model, thinking: thinkingText || undefined }
         setMessages(prev => [...prev, replyMsg])
       }
     } catch (err) {
@@ -143,5 +152,5 @@ ${modifyHint}
     lastImageContext.current = null
   }, [])
 
-  return { messages, loading, send, clear, confirmGenerate, setMessages: setMessagesDirectly, lastImageContext }
+  return { messages, loading, send, clear, confirmGenerate, setMessages: setMessagesDirectly, lastImageContext, thinking, setThinking }
 }

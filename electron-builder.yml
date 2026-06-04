@@ -19,6 +19,7 @@ nsis:
   createDesktopShortcut: always
 forceCodeSigning: false
 win:
+  icon: build/icon.png
   sign: false
   target:
     - target: nsis

@@ -6,6 +6,7 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 1000, minHeight: 600,
     frame: false, titleBarStyle: 'hidden', backgroundColor: '#1A1A1E',
+    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       sandbox: false, contextIsolation: true, nodeIntegration: false

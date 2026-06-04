@@ -3,12 +3,18 @@ const http = require('http')
 
 async function callClaude(messages, provider) {
   const base = (provider.baseUrl || 'https://api.anthropic.com').replace(/\/$/, '')
-  const body = JSON.stringify({
+  const payload = {
     model: provider.model || 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 16000,
     system: messages.system || 'You are Gravuresse.',
     messages: messages.history || []
-  })
+  }
+  // Extended thinking
+  if (messages.thinking) {
+    payload.thinking = { type: 'enabled', budget_tokens: 10000 }
+    payload.max_tokens = 16000
+  }
+  const body = JSON.stringify(payload)
   return new Promise((resolve, reject) => {
     const url = new URL(`${base}/v1/messages`)
     const mod = url.protocol === 'https:' ? https : http
@@ -26,8 +32,9 @@ async function callClaude(messages, provider) {
         try {
           const json = JSON.parse(data)
           if (json.error) return reject(new Error(json.error.message))
+          const thinking = json.content?.filter(b => b.type === 'thinking').map(b => b.text).join('') || ''
           const text = json.content?.filter(b => b.type === 'text').map(b => b.text).join('') || ''
-          resolve({ text, model: json.model })
+          resolve({ text, thinking, model: json.model })
         } catch (e) { reject(e) }
       })
     })

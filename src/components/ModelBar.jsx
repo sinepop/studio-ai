@@ -27,27 +27,35 @@ function Dropdown({ track, current, onChange, onOpenSettings, lang }) {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => configured ? setOpen(!open) : onOpenSettings()} style={{
-        background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+        background: open ? 'var(--accent-soft)' : 'var(--bg-surface)',
+        border: `1px solid ${open ? 'var(--border-accent)' : 'var(--border-default)'}`,
         color: configured ? 'var(--text-primary)' : 'var(--text-muted)',
-        padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11,
-        display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
-      }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{track.label}:</span>
+        padding: '6px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12,
+        display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+        transition: 'all 0.2s ease', fontWeight: configured ? 500 : 400,
+        boxShadow: open ? '0 0 0 2px var(--accent-glow)' : 'none'
+      }}
+      onMouseEnter={e => { if (!open) e.currentTarget.style.borderColor = 'var(--border-accent)' }}
+      onMouseLeave={e => { if (!open) e.currentTarget.style.borderColor = 'var(--border-default)' }}
+      >
+        <span style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{track.label}</span>
+        <span style={{ width: 1, height: 12, background: 'var(--border-default)', flexShrink: 0 }} />
         {currentProvider?.name || t('noConfig', lang)}
-        {configured ? <Ic n="chevDown" size={10} /> : <Ic n="gear" size={10} color="var(--accent)" />}
+        {configured ? <Ic n="chevDown" size={11} sw={2} /> : <Ic n="gear" size={11} color="var(--accent)" />}
       </button>
       {open && (
         <div style={{
-          position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
+          position: 'absolute', bottom: '100%', left: 0, marginBottom: 6,
           background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-md)', padding: 4, minWidth: 180, zIndex: 100,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          boxShadow: 'var(--shadow-lg)', animation: 'scaleIn 0.12s ease'
         }}>
           {track.providers.map(p => (
             <button key={p.id} onClick={() => { onChange(track.key, p); setOpen(false) }} style={{
               display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px',
               background: p.id === current?.id ? 'var(--accent-soft)' : 'transparent',
-              border: 'none', borderRadius: 4, color: 'var(--text-primary)', fontSize: 11, cursor: 'pointer'
+              border: 'none', borderRadius: 4, color: 'var(--text-primary)', fontSize: 11, cursor: 'pointer',
+              fontWeight: p.id === current?.id ? 500 : 400, transition: 'background 0.12s'
             }}
             onMouseEnter={e => e.target.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.target.style.background = p.id === current?.id ? 'var(--accent-soft)' : 'transparent'}
@@ -63,13 +71,20 @@ export default function ModelBar({ config, onProviderChange, onOpenSettings, lan
   if (!config) return null
   return (
     <div style={{
-      height: 44, borderTop: '1px solid var(--border-subtle)',
-      display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', background: 'var(--bg-primary)'
+      height: 48, borderTop: '1px solid var(--border-subtle)',
+      display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px',
+      background: 'var(--bg-elevated)'
     }}>
       {TRACKS.map(t => (
         <Dropdown key={t.key} track={t} current={config.providers?.[t.key]}
           onChange={onProviderChange} onOpenSettings={onOpenSettings} lang={lang} />
       ))}
+      <div style={{ flex: 1 }} />
+      <span style={{
+        fontSize: 10, color: 'var(--text-ghost)', fontFamily: 'var(--font-mono)',
+        letterSpacing: '0.5px', padding: '3px 8px', borderRadius: 'var(--radius-sm)',
+        background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)'
+      }}>v1.2.0</span>
     </div>
   )
 }

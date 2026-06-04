@@ -26,6 +26,8 @@ export default function App() {
   const [conversations, setConversations] = useState([])
   const [activeConvId, setActiveConvId] = useState(null)
   const skipSave = useRef(false)
+  const switchLoading = useRef(false)
+  const prevConvIdRef = useRef(null)
 
   // Load conversations on startup
   useEffect(() => {
@@ -34,21 +36,55 @@ export default function App() {
         setConversations(data.conversations)
         const activeId = data.activeId || data.conversations[0].id
         setActiveConvId(activeId)
-        // Restore active conversation
         const conv = data.conversations.find(c => c.id === activeId)
         if (conv) {
+          switchLoading.current = true
           skipSave.current = true
           chat.setMessages(() => conv.messages || [])
-          if (conv.assets) {
-            conv.assets.forEach(a => canvas.addAsset(a))
-          }
+          if (conv.assets) conv.assets.forEach(a => canvas.addAsset(a))
           skipSave.current = false
+          switchLoading.current = false
+          prevConvIdRef.current = activeId
         }
       }
     }).catch(() => {})
   }, [])
 
-  // Auto-save active conversation
+  // Reload messages + canvas when active conversation changes
+  useEffect(() => {
+    if (!activeConvId) return
+    switchLoading.current = true
+    skipSave.current = true
+    setConversations(prev => {
+      const conv = prev.find(c => c.id === activeConvId)
+      if (conv) {
+        chat.setMessages(() => conv.messages || [])
+        canvas.allAssets.forEach(a => canvas.removeAsset(a.id))
+        if (conv.assets) conv.assets.forEach(a => canvas.addAsset(a))
+      }
+      return prev
+    })
+    skipSave.current = false
+    switchLoading.current = false
+    prevConvIdRef.current = activeConvId
+  }, [activeConvId])
+
+  // Sync current messages + assets into conversations state
+  useEffect(() => {
+    if (skipSave.current || !activeConvId || switchLoading.current) return
+    if (prevConvIdRef.current !== activeConvId) return
+    setConversations(prev => {
+      const idx = prev.findIndex(c => c.id === activeConvId)
+      if (idx < 0) return prev
+      const cur = prev[idx]
+      if (cur.messages === chat.messages && cur.assets === canvas.allAssets) return prev
+      const next = [...prev]
+      next[idx] = { ...cur, messages: chat.messages, assets: canvas.allAssets, updatedAt: new Date().toISOString() }
+      return next.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    })
+  }, [chat.messages, canvas.allAssets, activeConvId])
+
+  // Debounced disk save
   useEffect(() => {
     if (skipSave.current || !activeConvId) return
     const timer = setTimeout(() => {
@@ -58,69 +94,61 @@ export default function App() {
         assets: canvas.allAssets,
         title
       })
-      // Update conversation list
-      setConversations(prev => {
-        const idx = prev.findIndex(c => c.id === activeConvId)
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = { ...next[idx], title, updatedAt: new Date().toISOString() }
-          return next.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-        }
-        return prev
-      })
     }, 1000)
     return () => clearTimeout(timer)
   }, [chat.messages, canvas.allAssets, activeConvId])
 
   const handleNewConv = useCallback(() => {
+    // Flush current conversation to state + disk before switching
+    if (activeConvId) {
+      const title = chat.messages.find(m => m.role === 'user')?.content?.slice(0, 30) || ''
+      setConversations(prev => {
+        const idx = prev.findIndex(c => c.id === activeConvId)
+        if (idx < 0) return prev
+        const next = [...prev]
+        next[idx] = { ...next[idx], messages: chat.messages, assets: canvas.allAssets }
+        return next
+      })
+      window.electronAPI?.saveConversation(activeConvId, {
+        messages: chat.messages, assets: canvas.allAssets, title
+      })
+    }
     const id = `conv_${Date.now()}`
     const conv = { id, title: '', messages: [], assets: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     setConversations(prev => [conv, ...prev])
     setActiveConvId(id)
-    skipSave.current = true
-    chat.clear()
-    canvas.clear?.()
-    skipSave.current = false
     window.electronAPI?.saveConversation(id, { messages: [], assets: [], title: '' })
     window.electronAPI?.setActiveConversation(id)
-  }, [chat, canvas])
+  }, [activeConvId, chat.messages, canvas.allAssets])
 
   const handleSwitchConv = useCallback((id) => {
     if (id === activeConvId) return
-    // Save current
-    if (activeConvId) {
-      window.electronAPI?.saveConversation(activeConvId, {
-        messages: chat.messages,
-        assets: canvas.allAssets,
-        title: chat.messages.find(m => m.role === 'user')?.content?.slice(0, 30) || ''
-      })
-    }
+    // Save current messages into conversations state before switching
+    setConversations(prev => {
+      const idx = prev.findIndex(c => c.id === activeConvId)
+      if (idx < 0) return prev
+      const next = [...prev]
+      next[idx] = { ...next[idx], messages: chat.messages, assets: canvas.allAssets }
+      return next
+    })
     setActiveConvId(id)
     window.electronAPI?.setActiveConversation(id)
-    // Load target
-    const conv = conversations.find(c => c.id === id)
-    if (conv) {
-      skipSave.current = true
-      chat.setMessages(() => conv.messages || [])
-      // Clear and reload canvas
-      canvas.allAssets.forEach(a => canvas.removeAsset(a.id))
-      if (conv.assets) conv.assets.forEach(a => canvas.addAsset(a))
-      skipSave.current = false
-    }
-  }, [activeConvId, conversations, chat, canvas])
+  }, [activeConvId, chat.messages, canvas.allAssets])
 
   const handleDeleteConv = useCallback((id) => {
-    setConversations(prev => prev.filter(c => c.id !== id))
     window.electronAPI?.deleteConversation(id)
-    if (id === activeConvId) {
-      const remaining = conversations.filter(c => c.id !== id)
-      if (remaining.length > 0) {
-        handleSwitchConv(remaining[0].id)
-      } else {
-        handleNewConv()
+    setConversations(prev => {
+      const remaining = prev.filter(c => c.id !== id)
+      if (id === activeConvId) {
+        if (remaining.length > 0) {
+          handleSwitchConv(remaining[0].id)
+        } else {
+          handleNewConv()
+        }
       }
-    }
-  }, [activeConvId, conversations, handleSwitchConv, handleNewConv])
+      return remaining
+    })
+  }, [activeConvId, handleSwitchConv, handleNewConv])
 
   // Apply theme, language, font-size from config
   useEffect(() => {
@@ -162,7 +190,8 @@ export default function App() {
         <div style={{ width: '40%', borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column' }}>
           <ChatPanel chat={chat} lang={config?.general?.language}
             conversations={conversations} activeConvId={activeConvId}
-            onSwitchConv={handleSwitchConv} onNewConv={handleNewConv} onDeleteConv={handleDeleteConv} />
+            onSwitchConv={handleSwitchConv} onNewConv={handleNewConv} onDeleteConv={handleDeleteConv}
+            canvas={canvas} />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, overflow: 'hidden' }}>
